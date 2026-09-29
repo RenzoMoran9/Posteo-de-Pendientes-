@@ -12,8 +12,8 @@ de inspiración visual (`referencias/` no se sube al repositorio).
 | [Zustand](https://github.com/pmndrs/zustand) | MIT | Estado de la app |
 | [TipTap](https://tiptap.dev) / [ProseMirror](https://prosemirror.net) | MIT | Editor de texto dentro del posit |
 | [Lucide](https://lucide.dev) (`lucide-react`) | ISC | Íconos de la interfaz (con un filtro SVG de trazo tembloroso) |
-| Fuente **Patrick Hand** — © 2010-2012 Patrick Wagesreiter (vía `@fontsource/patrick-hand`) | SIL OFL 1.1 | Letra manuscrita de los posits y de la interfaz |
-| Fuente **Caveat** — © 2014 The Caveat Project Authors (vía `@fontsource/caveat`) | SIL OFL 1.1 | Letra manuscrita de los títulos |
+| Fuente **Kalam** — © 2014 Indian Type Foundry (vía `@fontsource/kalam`) | SIL OFL 1.1 | Letra manuscrita de los posits y de la interfaz |
+| Fuente **Permanent Marker** — © 2010 Font Diner, Inc. (vía `@fontsource/permanent-marker`) | Apache 2.0 | Rótulo de rotulador: título «POSITS» y encabezados |
 
 Las fuentes se distribuyen dentro de la propia app (no se piden a Google en cada visita), así que el
 texto se ve idéntico en la PC y en el celular, y sigue funcionando sin conexión.

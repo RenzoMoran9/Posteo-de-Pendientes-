@@ -22,7 +22,7 @@ function Marker({ color, active, onPick }: { color: PaperColor; active: boolean;
       onClick={() => onPick(color.hex)}
     >
       <svg viewBox="0 0 34 84" aria-hidden="true" focusable="false">
-        <g strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" stroke="#2b2723">
+        <g strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" stroke="var(--panel-line)">
           {/* cuerpo claro con banda del color */}
           <path d="M6 28 H28 L27 78 Q17 82 7 78 Z" fill="#fffdf6" />
           <path d="M6.6 46 H27.4 L27.1 62 H6.9 Z" fill="var(--c)" strokeWidth="1.6" />
@@ -43,6 +43,7 @@ function Marker({ color, active, onPick }: { color: PaperColor; active: boolean;
 export function MarkerCase() {
   const coarse = useCoarsePointer()
   const narrow = useMediaQuery('(max-width: 520px)')
+  const tiny = useMediaQuery('(max-width: 350px)')
   const editing = useStore((s) => s.editingId !== null)
   const current = useStore((s) => (s.selectedId ? s.notes[s.selectedId]?.color : undefined) ?? s.settings.defaultColor)
   const [open, setOpen] = useState(false)
@@ -67,7 +68,7 @@ export function MarkerCase() {
   if (editing && coarse) return null
 
   // En pantallas angostas asoman menos marcadores; el que tienes en la mano siempre se ve.
-  const count = narrow ? 6 : FEATURED_COUNT
+  const count = tiny ? 5 : narrow ? 6 : FEATURED_COUNT
   const featured = PAPER_COLORS.slice(0, count)
   const tray: PaperColor[] = featured.some((c) => same(c.hex, current))
     ? featured

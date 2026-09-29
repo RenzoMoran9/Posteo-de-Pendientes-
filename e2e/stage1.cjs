@@ -128,10 +128,10 @@ async function desktop(browser, url) {
   check('Esc sale del modo escritura y deja el posit seleccionado', s.editingId === null && s.selectedId === created.id)
 
   // Color con un marcador
-  await page.getByRole('button', { name: 'Color Rosa' }).click()
+  await page.getByRole('button', { name: 'Color Cielo' }).click()
   s = await getState(page)
-  check('un marcador cambia el color del posit seleccionado', s.notes.find((n) => n.id === created.id).color === '#FFA9C8')
-  check('el marcador elegido pasa a ser el de los posits nuevos', s.defaultColor === '#FFA9C8')
+  check('un marcador cambia el color del posit seleccionado', s.notes.find((n) => n.id === created.id).color === '#8ECDF5')
+  check('el marcador elegido pasa a ser el de los posits nuevos', s.defaultColor === '#8ECDF5')
 
   // Mover arrastrando desde la cinta
   const id = created.id
@@ -378,9 +378,20 @@ async function phone(browser, url) {
 
   // Desplazar el tablero con un dedo sobre el fondo
   const v0 = s.view
-  await drag({ x: 320, y: 700 }, { x: 250, y: 640 })
+  // busca un punto de fondo realmente libre (ni posits ni barras encima)
+  const from = await page.evaluate(() => {
+    for (let y = 120; y < 700; y += 40) {
+      for (let x = 8; x < 380; x += 24) {
+        const el = document.elementFromPoint(x, y)
+        if (el && el.classList.contains('board')) return { x, y }
+      }
+    }
+    return { x: 8, y: 120 }
+  })
+  const under = await page.evaluate(({ x, y }) => { const el = document.elementFromPoint(x, y); return el ? `${el.tagName}.${String(el.className).slice(0, 30)}` : 'nada' }, from)
+  await drag(from, { x: from.x + 70, y: from.y + 60 })
   s = await getState(page)
-  check('(celular) un dedo sobre el fondo desplaza el tablero', near(s.view.x - v0.x, -70, 12) && near(s.view.y - v0.y, -60, 12), `dx=${s.view.x - v0.x} dy=${s.view.y - v0.y}`)
+  check('(celular) un dedo sobre el fondo desplaza el tablero', near(s.view.x - v0.x, 70, 12) && near(s.view.y - v0.y, 60, 12), `bajo el dedo: ${under}; dx=${s.view.x - v0.x} dy=${s.view.y - v0.y}`)
 
   // Pellizcar
   const z0 = s.view.z

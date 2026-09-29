@@ -1,28 +1,40 @@
 :root {
-  /* Papel de cuaderno */
+  /* Papel de cuaderno (el fondo del tablero) */
   --paper: #fbf5e4;
   --paper-deep: #f1e6c8;
   --paper-white: #fffdf6;
   --grid-rgb: 88 122 156;
 
-  /* Tinta */
-  --ink: #2b2723;
-  --ink-soft: #6a6157;
+  /* Tinta de bolígrafo (azul-negra) para lo que va sobre el papel */
+  --ink: #1f262d;
+  --ink-soft: #5a6570;
 
-  /* Acentos */
-  --accent: #ee6a55;
-  --accent-deep: #d24c3a;
-  --accent-ink: #fffaf0;
-  --danger: #c9402f;
-  --ok: #3f8f64;
+  /* Interfaz de taller: chapa de grafito, azul acero y naranja de seguridad */
+  --panel: #2a3037;
+  --panel-2: #383f48;
+  --panel-line: #12161a;
+  --panel-text: #eef0f2;
+  --panel-muted: #a5afb8;
+  --steel: #5f96d7;
+  --steel-deep: #3b6c9e;
+  --accent: #f0892d;
+  --accent-deep: #cf6e14;
+  --accent-ink: #1a1207;
+  --canvas: #5c6642;
+  --canvas-light: #6c7850;
+  --thread: #dcbf78;
+  --danger: #ff8272;
+  --ok: #7fd39b;
 
-  /* Letras manuscritas (autoalojadas, se ven igual en PC y celular) */
-  --font-ui: 'Patrick Hand', 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', system-ui, sans-serif;
-  --font-title: 'Caveat', 'Segoe Script', 'Brush Script MT', cursive;
-  --font-note: 'Patrick Hand', 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', system-ui, sans-serif;
+  /* Letras manuscritas (autoalojadas: se ven igual en PC y celular) */
+  --font-note: 'Kalam', 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive;
+  --font-ui: 'Kalam', 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', system-ui, sans-serif;
+  --font-title: 'Permanent Marker', 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive;
+  --note-size: 22px;
+  --note-lh: 1.3;
 
-  /* Bordes "a mano": radios distintos en cada esquina */
-  --hand-radius: 16px 20px 14px 22px / 20px 14px 22px 16px;
+  /* Bordes "a mano": esquinas casi rectas, cada una un poco distinta */
+  --hand-radius: 8px 10px 7px 11px / 10px 7px 11px 8px;
 
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-r: env(safe-area-inset-right, 0px);

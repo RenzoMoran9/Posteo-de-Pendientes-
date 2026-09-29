@@ -10,7 +10,11 @@ import { view } from './view'
 function fontsReady(): Promise<void> {
   const fonts = document.fonts
   if (!fonts || typeof fonts.load !== 'function') return Promise.resolve()
-  const loaded = Promise.all([fonts.load('22px "Patrick Hand"'), fonts.load('700 26px "Caveat"')]).then(
+  const loaded = Promise.all([
+    fonts.load('22px "Kalam"'),
+    fonts.load('700 18px "Kalam"'),
+    fonts.load('20px "Permanent Marker"'),
+  ]).then(
     () => undefined,
     () => undefined,
   )

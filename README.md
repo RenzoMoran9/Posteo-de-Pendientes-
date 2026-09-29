@@ -18,7 +18,8 @@ se ven igual en ambos. La visión completa del proyecto está en [`CLAUDE.md`](.
 
 - **Tablero** de cuaderno cuadriculado (crema) que se desplaza y hace zoom: un dedo (o el ratón) mueve,
   dos dedos pellizcan, `Ctrl` + rueda acerca, «Ver todo» encuadra todos los posits.
-- **Posit realista**: papel de color, esquina doblada, cinta adhesiva y sombra suave. Se escribe directo sobre él.
+- **Posit realista**: papel de color, esquina doblada, cinta adhesiva de taller (enmascarar, ducto, azul de pintor…)
+  y sombra suave. Se escribe directo sobre él, con letra manuscrita.
 - **Crear** con «＋ Nuevo» (o `N`, o doble clic en el fondo); el posit nace en un hueco libre, sin tapar a otros.
 - **Mover** arrastrando desde la cinta (o desde cualquier parte si no estás escribiendo);
   **redimensionar** con el tirador de la esquina; **borrar** con «Borrar» (o `Supr`) y **Deshacer** al instante.
@@ -55,6 +56,9 @@ npm run e2e          # pruebas en un navegador real, tamaño PC y celular con to
 - **Tablero en HTML/CSS** (no `<canvas>`) con zoom y desplazamiento propios (`src/board/`): cada posit es
   texto real editable, y el gesto de tocar/arrastrar/pellizcar se comporta igual en PC y celular.
   El movimiento se escribe directo en el DOM para mantener 60 fps.
+- **Aspecto**: el fondo es una hoja de cuaderno cuadriculada crema; la interfaz es de "taller" (chapa de grafito,
+  azul acero y naranja de seguridad, esquinas casi rectas, trazo grueso con sombra dura y un temblor SVG de dibujo a mano).
+  Todo son *tokens* en `src/styles/tokens.css`, así que cambiar colores o letras es tocar un solo archivo.
 - **TipTap (ProseMirror)** dentro del posit; el documento se guarda como JSON, listo para las listas
   y los pendientes de la Etapa 2.
 - **Datos locales primero** (`src/store/`): Zustand + guardado automático en el dispositivo. Los identificadores son

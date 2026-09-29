@@ -9,11 +9,11 @@ const PUBLIC = path.resolve(__dirname, '..', 'public')
 
 // Logo propio (mismo dibujo que public/favicon.svg y src/ui/Logo.tsx)
 const logo = `
-  <g stroke="#2b2723" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round">
+  <g stroke="#1f262d" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round">
     <path d="M9 9 H55 V41 L41 56 H9 Z" fill="#FFD95E"/>
     <path d="M55 41 H41 V56 Z" fill="#FFF1B8"/>
     <path d="M18 24 H44 M18 34 H35" fill="none"/>
-    <path d="M22 4 L41 4 L39.5 14 L23.5 14 Z" fill="#FF8A78" stroke-width="2.4"/>
+    <path d="M22 4 L41 4 L39.5 14 L23.5 14 Z" fill="#5F96D7" stroke-width="2.4"/>
   </g>`
 
 /** `scale` = cuánto del lienzo ocupa el logo; `radius` = esquinas redondeadas del fondo. */

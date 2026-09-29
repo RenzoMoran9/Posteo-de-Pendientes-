@@ -76,7 +76,7 @@ p {
 }
 
 :focus-visible {
-  outline: 3px solid rgb(52 120 214 / 0.75);
+  outline: 3px solid rgb(95 150 215 / 0.9);
   outline-offset: 2px;
 }
 

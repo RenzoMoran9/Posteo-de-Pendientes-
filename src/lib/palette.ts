@@ -8,30 +8,32 @@ export interface PaperColor {
  * en el estuche; el resto se ve en «Más colores».
  */
 export const PAPER_COLORS: PaperColor[] = [
+  // Los que asoman en el estuche (en el celular, los seis primeros)
   { name: 'Amarillo', hex: '#FFD95E' },
   { name: 'Naranja', hex: '#FFA65C' },
-  { name: 'Coral', hex: '#FF8A78' },
-  { name: 'Rosa', hex: '#FFA9C8' },
-  { name: 'Lila', hex: '#CDB4F6' },
-  { name: 'Cielo', hex: '#8ECDF5' },
-  { name: 'Turquesa', hex: '#62D2C8' },
-  { name: 'Menta', hex: '#A3E6BE' },
-  { name: 'Lima', hex: '#C9E86A' },
-  { name: 'Mostaza', hex: '#F2B84B' },
   { name: 'Rojo', hex: '#EF6A62' },
-  { name: 'Fucsia', hex: '#E879B0' },
-  { name: 'Morado', hex: '#A78BDF' },
+  { name: 'Cielo', hex: '#8ECDF5' },
   { name: 'Azul', hex: '#5BA4E6' },
   { name: 'Verde', hex: '#6CC070' },
-  { name: 'Crema', hex: '#FFF0C7' },
-  { name: 'Kraft', hex: '#DDBE92' },
   { name: 'Gris', hex: '#E4E1DA' },
-  { name: 'Blanco', hex: '#FFFDF7' },
-  { name: 'Carbón', hex: '#3B3F46' },
+  { name: 'Kraft', hex: '#DDBE92' },
   { name: 'Marino', hex: '#34507F' },
-  { name: 'Vino', hex: '#8E3E5A' },
+  // El resto, en «Más colores»
+  { name: 'Carbón', hex: '#3B3F46' },
   { name: 'Bosque', hex: '#2F6F55' },
   { name: 'Café', hex: '#7C563B' },
+  { name: 'Vino', hex: '#8E3E5A' },
+  { name: 'Mostaza', hex: '#F2B84B' },
+  { name: 'Lima', hex: '#C9E86A' },
+  { name: 'Menta', hex: '#A3E6BE' },
+  { name: 'Turquesa', hex: '#62D2C8' },
+  { name: 'Crema', hex: '#FFF0C7' },
+  { name: 'Blanco', hex: '#FFFDF7' },
+  { name: 'Coral', hex: '#FF8A78' },
+  { name: 'Rosa', hex: '#FFA9C8' },
+  { name: 'Fucsia', hex: '#E879B0' },
+  { name: 'Lila', hex: '#CDB4F6' },
+  { name: 'Morado', hex: '#A78BDF' },
 ]
 
 /** Cuántos marcadores caben "de fábrica" en el estuche. */
@@ -42,15 +44,15 @@ export const DEFAULT_COLOR = PAPER_COLORS[0].hex
 export const INK_DARK = '#2b2723'
 export const INK_LIGHT = '#fffaf0'
 
-/** Cintas adhesivas semitransparentes (washi): color visible (`css`) y su base opaca (`hex`). */
+/** Cintas adhesivas de taller (semitransparentes): color visible (`css`) y su base opaca (`hex`). */
 export const TAPE_COLORS = [
-  { css: 'rgb(240 128 96 / 0.84)', hex: '#F08060' },
-  { css: 'rgb(84 184 172 / 0.84)', hex: '#54B8AC' },
-  { css: 'rgb(238 150 190 / 0.84)', hex: '#EE96BE' },
-  { css: 'rgb(238 190 74 / 0.88)', hex: '#EEBE4A' },
-  { css: 'rgb(116 174 232 / 0.84)', hex: '#74AEE8' },
-  { css: 'rgb(172 142 230 / 0.84)', hex: '#AC8EE6' },
-  { css: 'rgb(206 170 122 / 0.92)', hex: '#CEAA7A' },
+  { css: 'rgb(226 204 152 / 0.9)', hex: '#E2CC98' }, // cinta de enmascarar
+  { css: 'rgb(95 150 215 / 0.84)', hex: '#5F96D7' }, // azul de pintor
+  { css: 'rgb(170 178 186 / 0.9)', hex: '#AAB2BA' }, // ducto plateado
+  { css: 'rgb(240 137 45 / 0.86)', hex: '#F0892D' }, // naranja de seguridad
+  { css: 'rgb(122 138 78 / 0.9)', hex: '#7A8A4E' }, // oliva
+  { css: 'rgb(206 74 66 / 0.86)', hex: '#CE4A42' }, // rojo eléctrico
+  { css: 'rgb(48 54 61 / 0.9)', hex: '#30363D' }, // negra
 ]
 
 export function nameOfColor(hex: string): string {
