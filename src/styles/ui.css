@@ -669,8 +669,9 @@
     padding: 0 12px;
   }
 
+  /* Seis botones (duplicar, tamaño ±, girar ↺ ↻, borrar): solo el dibujo y apretados, para que quepan en 320 px. */
   .ctx.is-sticker .ctx-btn {
-    padding: 0 16px;
+    padding: 0 11px;
   }
 
   /* El estuche lleva un botón más (íconos): los botones chicos ceden un poco de sitio a los marcadores. */
@@ -698,6 +699,10 @@
 @media (max-width: 350px) {
   .ctx.is-editing .ctx-btn:not(.is-primary) {
     padding: 0 9px;
+  }
+
+  .ctx.is-sticker .ctx-btn {
+    padding: 0 8px;
   }
 
   .brand-name {

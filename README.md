@@ -61,15 +61,20 @@ se ven igual en ambos. La visión completa del proyecto está en [`CLAUDE.md`](.
      se duplica y se borra con él; si lo sacas del posit, queda suelto otra vez.
   3. *Dentro del texto*: con el posit en escritura, el botón «Ícono» lo mete junto a lo que escribes
      (por ejemplo, un 🔥 al lado de un pendiente urgente); se borra con Retroceso como una letra.
-- Un ícono seleccionado muestra su marco y un **tirador para cambiar el tamaño**; la barra inferior trae
-  Duplicar, más pequeño, más grande y Borrar (con «Deshacer»).
+- Un ícono seleccionado muestra su marco, un **tirador para cambiar el tamaño** (esquina) y una **perilla para
+  girarlo** (arriba, unida por un hilo). La barra inferior trae Duplicar, más pequeño, más grande, girar ↺ ↻ y
+  Borrar (con «Deshacer»).
+- **Girar íconos**: arrastra la perilla (con el dedo o el ratón) y el ícono gira sobre su centro siguiéndote;
+  muestra los grados y se pega a 0°, 45°, 90°… (con `Mayús`, de 15° en 15°; con `Alt`, libre). Los botones ↺ ↻ (o las
+  teclas `[` y `]`) lo giran al siguiente ángulo de 15°, así un ícono chueco se endereza en un toque. Al agrandar
+  un ícono girado, el tirador sigue bajo el dedo (crece desde su centro).
 - **Letras manuscritas a elegir por posit** (botón «Letra»): Pluma (Kalam, la de siempre), Rápida, Cuaderno,
   Plano, Redonda, Marcador fino, Alta y angosta y Marcador grueso, ajustadas para verse del mismo tamaño.
 - **Negrita, cursiva y subrayado** mientras se escribe (botones o `Ctrl+B` / `Ctrl+I` / `Ctrl+U`).
 
 Atajos de teclado (PC): `N` nuevo · `I` íconos · `Enter` escribir · `Esc` salir · `Supr` borrar · `Ctrl+D` duplicar ·
-flechas mueven el posit o el ícono · `+` `-` `0` zoom (con un ícono seleccionado, su tamaño) · `F` ver todo ·
-`Ctrl+Mayús+8` viñetas · `Ctrl+Mayús+9` pendientes · `Ctrl+B` `Ctrl+I` `Ctrl+U` estilo del texto.
+flechas mueven el posit o el ícono · `+` `-` `0` zoom (con un ícono seleccionado, su tamaño) · `[` `]` girar el ícono ·
+`F` ver todo · `Ctrl+Mayús+8` viñetas · `Ctrl+Mayús+9` pendientes · `Ctrl+B` `Ctrl+I` `Ctrl+U` estilo del texto.
 
 ## Cómo probarla
 
@@ -82,7 +87,7 @@ npm run dev          # http://localhost:5173  (y la dirección de "Network" para
 npm run build        # compila a dist/
 npm run preview      # sirve dist/ en http://localhost:4173
 npm test             # pruebas unitarias (lógica de datos, geometría, guardado)
-npm run e2e          # pruebas en un navegador real (Etapas 1 a 3), tamaño PC y celular con toques reales (necesita `npm run build`)
+npm run e2e          # pruebas en un navegador real (Etapas 1 a 3 y giro de íconos), tamaño PC y celular con toques reales (necesita `npm run build`)
 npm run icons        # vuelve a generar src/icons/data.generated.ts a partir de los dibujos de scripts/icons/
 npm run icons:sheet -- --cat urgente   # hoja de revisión de los íconos (PNG en scripts/icons/out/)
 ```

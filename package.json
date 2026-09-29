@@ -10,7 +10,7 @@
     "preview": "vite preview --host --port 4173",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "e2e": "node e2e/stage1.cjs && node e2e/stage2.cjs && node e2e/stage3.cjs && node e2e/stage3-fonts.cjs",
+    "e2e": "node e2e/stage1.cjs && node e2e/stage2.cjs && node e2e/stage3.cjs && node e2e/stage3-fonts.cjs && node e2e/stage3-rotate.cjs",
     "icons": "node scripts/icons/build.mjs",
     "icons:sheet": "node scripts/icons/sheet.mjs"
   },

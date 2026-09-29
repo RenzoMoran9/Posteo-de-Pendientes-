@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { SyntheticEvent } from 'react'
-import { Check, Copy, List, ListChecks, Minus, Plus, Smile, Trash, Type } from 'lucide-react'
+import { Check, Copy, List, ListChecks, Minus, Plus, RotateCcw, RotateCw, Smile, Trash, Type } from 'lucide-react'
+import { rotateSticker } from '../board/actions'
 import { endEditing } from '../board/editors'
 import { toggleBullets, toggleTasks } from '../board/listCommands'
 import { useEditorOf, useListFlags } from '../hooks/useActiveEditor'
@@ -23,7 +24,7 @@ function resizeSticker(id: string, factor: number): void {
 /**
  * Acciones de lo seleccionado (encima del estuche).
  * Posit: Duplicar · Letra · Borrar. Escribiendo: «Listo» + viñetas + pendientes + ícono + letra/estilo + borrar.
- * Ícono pegado: Duplicar · más pequeño · más grande · Borrar.
+ * Ícono pegado: Duplicar · más pequeño · más grande · girar a la izquierda · girar a la derecha · Borrar.
  */
 export function ContextBar() {
   const selectedId = useStore((s) => s.selectedId)
@@ -92,6 +93,12 @@ export function ContextBar() {
         </button>
         <button type="button" className="ctx-btn" aria-label="Ícono más grande" title="Más grande (+)" onClick={() => resizeSticker(stickerId, 1.25)}>
           <Plus aria-hidden="true" />
+        </button>
+        <button type="button" className="ctx-btn" aria-label="Girar a la izquierda" title="Girar a la izquierda ( [ )" onClick={() => rotateSticker(stickerId, -1)}>
+          <RotateCcw aria-hidden="true" />
+        </button>
+        <button type="button" className="ctx-btn" aria-label="Girar a la derecha" title="Girar a la derecha ( ] )" onClick={() => rotateSticker(stickerId, 1)}>
+          <RotateCw aria-hidden="true" />
         </button>
         <button type="button" className="ctx-btn is-danger" onClick={() => store.getState().deleteSticker(stickerId)}>
           <Trash aria-hidden="true" />

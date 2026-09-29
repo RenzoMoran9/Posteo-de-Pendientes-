@@ -1,4 +1,4 @@
-import { boundsOf, findFreeSpot, fitView, type Rect } from '../lib/geometry'
+import { boundsOf, findFreeSpot, fitView, rotatedSquare, stepAngle, type Rect } from '../lib/geometry'
 import { NOTE_DEFAULTS, STICKER_DEFAULTS, stickersOfNote, store } from '../store/store'
 import { insertIconInNote } from './editors'
 import { kbdProxy } from './kbd'
@@ -58,12 +58,22 @@ function measuredRects(): Rect[] {
     })
 }
 
-/** Rectángulos de los íconos sueltos del tablero activo. */
+/** Rectángulos de los íconos sueltos del tablero activo (lo que ocupan ya girados). */
 function looseStickerRects(): Rect[] {
   const s = store.getState()
   return Object.values(s.stickers)
     .filter((st) => st.boardId === s.activeBoardId && st.noteId === null)
-    .map((st) => ({ x: st.x, y: st.y, w: st.size, h: st.size }))
+    .map((st) => rotatedSquare(st.x, st.y, st.size, st.tilt))
+}
+
+/**
+ * Gira un ícono al siguiente ángulo "redondo" (de 15° en 15°) hacia la derecha (`1`) o la izquierda (`-1`).
+ * Aunque el ícono esté chueco (los íconos nuevos nacen un poco inclinados), en un toque o dos queda derecho.
+ */
+export function rotateSticker(id: string, dir: 1 | -1): void {
+  const st = store.getState().stickers[id]
+  if (!st) return
+  store.getState().patchSticker(id, { tilt: stepAngle(st.tilt, dir) })
 }
 
 /**
@@ -117,7 +127,7 @@ function allStickerRects(): Rect[] {
     .flatMap((st) => {
       const parent = st.noteId ? s.notes[st.noteId] : undefined
       if (st.noteId && !parent) return []
-      return [{ x: (parent ? parent.x : 0) + st.x, y: (parent ? parent.y : 0) + st.y, w: st.size, h: st.size }]
+      return [rotatedSquare((parent ? parent.x : 0) + st.x, (parent ? parent.y : 0) + st.y, st.size, st.tilt)]
     })
 }
 

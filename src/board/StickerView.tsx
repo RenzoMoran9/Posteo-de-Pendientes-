@@ -12,7 +12,8 @@ export const lineFor = (size: number): number => Math.min(4.2, Math.max(2.5, 112
 /**
  * Un ícono pegado, suelto en la hoja o sobre un posit. La posición y la inclinación van en las propiedades
  * `translate` y `rotate` (no en `transform`): así el "levantarlo" al arrastrarlo (`scale`) gira y crece
- * desde su propio centro. El motor de gestos escribe `translate` directo mientras se arrastra.
+ * desde su propio centro. El motor de gestos escribe `translate`, `rotate` y el tamaño directo mientras
+ * se arrastra, se gira o se agranda. Seleccionado, muestra su marco, el tirador de giro (arriba) y el de tamaño (esquina).
  */
 export const StickerView = memo(function StickerView({ id }: { id: string }) {
   const st = useStore((s) => s.stickers[id])
@@ -38,6 +39,7 @@ export const StickerView = memo(function StickerView({ id }: { id: string }) {
     >
       <IconArt id={st.icon} />
       {selected && <div className="sticker-ring" aria-hidden="true" />}
+      {selected && <div className="sticker-rotate" data-rotate-sticker aria-hidden="true" />}
       {selected && <div className="sticker-handle" data-resize-sticker aria-hidden="true" />}
     </div>
   )

@@ -33,6 +33,47 @@ export function magnet(v: number, step: number, tol: number): number {
   return Math.abs(n - v) <= tol ? n : v
 }
 
+/** Ángulo equivalente en (−180, 180]: 190° → −170°, −180° → 180°. Nunca devuelve −0. */
+export function normalizeAngle(deg: number): number {
+  const a = ((((deg + 180) % 360) + 360) % 360) - 180
+  return (a === -180 ? 180 : a) + 0
+}
+
+/**
+ * Siguiente ángulo "redondo" (múltiplo de `step`) en un sentido: desde 9° → 15° a la derecha o 0° a la izquierda.
+ * Así los botones de girar siempre terminan derechos, aunque el ícono naciera un poco chueco.
+ */
+export function stepAngle(deg: number, dir: 1 | -1, step = 15): number {
+  const k = deg / step
+  const eps = 1e-6
+  const n = dir > 0 ? Math.floor(k + eps) + 1 : Math.ceil(k - eps) - 1
+  return normalizeAngle(n * step)
+}
+
+/**
+ * Imán del giro con el dedo o el ratón: cerca de un múltiplo de 45° (0°, 45°, 90°…) se pega a él para poder
+ * dejar el ícono derecho sin puntería; con `strict` (tecla Mayús) va de 15° en 15°; con `free` (Alt) no hay imán.
+ */
+export function snapTilt(deg: number, opts: { strict?: boolean; free?: boolean } = {}): number {
+  if (opts.free) return deg
+  if (opts.strict) return Math.round(deg / 15) * 15 + 0
+  const n = Math.round(deg / 45) * 45 + 0
+  return Math.abs(n - deg) <= 4 ? n : deg
+}
+
+/** Ángulo (en grados, 0° = derecha, positivo = hacia abajo) del vector que va de (cx, cy) a (px, py). */
+export const angleTo = (cx: number, cy: number, px: number, py: number): number =>
+  (Math.atan2(py - cy, px - cx) * 180) / Math.PI
+
+/** Caja que ocupa en el tablero un ícono cuadrado de lado `size` girado `tilt`° sobre su centro. */
+export function rotatedSquare(x: number, y: number, size: number, tilt: number): Rect {
+  const r = (tilt * Math.PI) / 180
+  const side = size * (Math.abs(Math.cos(r)) + Math.abs(Math.sin(r)))
+  const cx = x + size / 2
+  const cy = y + size / 2
+  return { x: cx - side / 2, y: cy - side / 2, w: side, h: side }
+}
+
 /** Cambia el zoom dejando fijo el punto (px, py) de la pantalla. */
 export function zoomAround(view: View, px: number, py: number, nextZ: number): View {
   const z = clamp(nextZ, MIN_ZOOM, MAX_ZOOM)

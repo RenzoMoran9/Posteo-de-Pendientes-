@@ -135,6 +135,71 @@
   box-shadow: calc(1.5px * var(--iz, 1)) calc(2px * var(--iz, 1)) 0 var(--panel-line);
 }
 
+/* Tirador de giro: una perilla sobre el ícono, unida por un hilo. Arrastrarla lo gira sobre su centro
+   (se pega a 0°, 45°, 90°…; con Mayús, de 15° en 15°; con Alt, libre). Va en el marco del ícono, así que gira con él. */
+.sticker-rotate {
+  position: absolute;
+  left: 50%;
+  top: calc(-52px * var(--iz, 1));
+  width: calc(44px * var(--iz, 1));
+  height: calc(44px * var(--iz, 1));
+  margin-left: calc(-22px * var(--iz, 1));
+  touch-action: none;
+  cursor: grab;
+}
+
+.sticker-rotate::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: calc(22px * var(--iz, 1));
+  border-left: calc(2.5px * var(--iz, 1)) dashed var(--steel-deep);
+  transform: translateX(-50%);
+  opacity: 0.85;
+}
+
+.sticker-rotate::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(24px * var(--iz, 1));
+  height: calc(24px * var(--iz, 1));
+  transform: translate(-50%, -50%);
+  background: var(--paper-white)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b6c9e' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8'/%3E%3Cpath d='M21 3v5h-5'/%3E%3C/svg%3E")
+    center / 64% no-repeat;
+  border: calc(3px * var(--iz, 1)) solid var(--steel-deep);
+  border-radius: 50%;
+  box-shadow: calc(1.5px * var(--iz, 1)) calc(2px * var(--iz, 1)) 0 var(--panel-line);
+}
+
+.sticker[data-rotating] .sticker-rotate {
+  cursor: grabbing;
+}
+
+/* Mientras se gira, un rótulo con los grados; va del lado opuesto a la perilla para que el dedo no lo tape,
+   y se contragira para quedar siempre derecho. */
+.sticker[data-rotating]::after {
+  content: attr(data-angle);
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 26px * var(--iz, 1));
+  translate: -50% 0;
+  rotate: calc(var(--tilt, 0) * -1deg);
+  padding: calc(4px * var(--iz, 1)) calc(10px * var(--iz, 1)) calc(3px * var(--iz, 1));
+  font-size: calc(19px * var(--iz, 1));
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: calc(2.5px * var(--iz, 1)) solid var(--panel-line);
+  border-radius: calc(7px * var(--iz, 1)) calc(9px * var(--iz, 1)) calc(6px * var(--iz, 1)) calc(10px * var(--iz, 1));
+  pointer-events: none;
+}
+
 /* ─────────── Ícono dentro del texto de un posit ─────────── */
 
 .inline-icon {

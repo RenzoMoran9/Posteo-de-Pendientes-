@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { GRID, MAX_ZOOM, MIN_ZOOM, boundsOf, clamp, findFreeSpot, fitView, magnet, zoomAround, type Rect } from './geometry'
+import {
+  GRID,
+  MAX_ZOOM,
+  MIN_ZOOM,
+  angleTo,
+  boundsOf,
+  clamp,
+  findFreeSpot,
+  fitView,
+  magnet,
+  normalizeAngle,
+  rotatedSquare,
+  snapTilt,
+  stepAngle,
+  zoomAround,
+  type Rect,
+} from './geometry'
 
 describe('magnet', () => {
   it('pega al múltiplo cercano', () => {
@@ -82,5 +98,76 @@ describe('clamp', () => {
     expect(clamp(5, 0, 3)).toBe(3)
     expect(clamp(-5, 0, 3)).toBe(0)
     expect(clamp(2, 0, 3)).toBe(2)
+  })
+})
+
+describe('giro de íconos', () => {
+  it('normalizeAngle deja el ángulo entre −180° (sin incluir) y 180°', () => {
+    expect(normalizeAngle(0)).toBe(0)
+    expect(normalizeAngle(190)).toBe(-170)
+    expect(normalizeAngle(-190)).toBe(170)
+    expect(normalizeAngle(360)).toBe(0)
+    expect(normalizeAngle(-180)).toBe(180)
+    expect(normalizeAngle(180)).toBe(180)
+    expect(normalizeAngle(725)).toBe(5)
+    expect(Object.is(normalizeAngle(-360), 0)).toBe(true)
+  })
+
+  it('stepAngle salta al siguiente múltiplo de 15° en el sentido pedido', () => {
+    expect(stepAngle(9, 1)).toBe(15)
+    expect(stepAngle(9, -1)).toBe(0)
+    expect(stepAngle(15, 1)).toBe(30)
+    expect(stepAngle(15, -1)).toBe(0)
+    expect(stepAngle(0, 1)).toBe(15)
+    expect(stepAngle(0, -1)).toBe(-15)
+    expect(stepAngle(-9, 1)).toBe(0)
+    expect(stepAngle(-9, -1)).toBe(-15)
+    expect(stepAngle(165, 1)).toBe(180)
+    expect(stepAngle(180, 1)).toBe(-165)
+    expect(stepAngle(-165, -1)).toBe(180)
+  })
+
+  it('stepAngle no se atora por decimales: 14.9999999° cuenta como 15°', () => {
+    expect(stepAngle(14.9999999, 1)).toBe(30)
+    expect(stepAngle(30.0000001, -1)).toBe(15)
+  })
+
+  it('veinticuatro toques a la derecha dan la vuelta completa', () => {
+    let a = 0
+    for (let i = 0; i < 24; i++) a = stepAngle(a, 1)
+    expect(a).toBe(0)
+  })
+
+  it('snapTilt se pega a 0°, 45°, 90°… cuando se pasa cerca', () => {
+    expect(snapTilt(2)).toBe(0)
+    expect(snapTilt(-3.5)).toBe(0)
+    expect(snapTilt(88)).toBe(90)
+    expect(snapTilt(47)).toBe(45)
+    expect(snapTilt(-133)).toBe(-135)
+    expect(snapTilt(20)).toBe(20)
+    expect(snapTilt(60.5)).toBe(60.5)
+  })
+
+  it('snapTilt con Mayús va de 15° en 15°, y con Alt es libre', () => {
+    expect(snapTilt(20, { strict: true })).toBe(15)
+    expect(snapTilt(23, { strict: true })).toBe(30)
+    expect(snapTilt(2, { free: true })).toBe(2)
+  })
+
+  it('angleTo mide desde el centro: derecha 0°, abajo 90°, izquierda 180°, arriba −90°', () => {
+    expect(angleTo(0, 0, 10, 0)).toBeCloseTo(0, 9)
+    expect(angleTo(0, 0, 0, 10)).toBeCloseTo(90, 9)
+    expect(Math.abs(angleTo(0, 0, -10, 0))).toBeCloseTo(180, 9)
+    expect(angleTo(5, 5, 5, -5)).toBeCloseTo(-90, 9)
+  })
+
+  it('rotatedSquare: sin giro es el mismo cuadro; a 45° crece √2 desde su centro', () => {
+    expect(rotatedSquare(10, 20, 50, 0)).toEqual({ x: 10, y: 20, w: 50, h: 50 })
+    const r = rotatedSquare(10, 20, 50, 45)
+    expect(r.w).toBeCloseTo(50 * Math.SQRT2, 9)
+    expect(r.x + r.w / 2).toBeCloseTo(35, 9)
+    expect(r.y + r.h / 2).toBeCloseTo(45, 9)
+    const q = rotatedSquare(10, 20, 50, 90)
+    expect(q.w).toBeCloseTo(50, 9)
   })
 })

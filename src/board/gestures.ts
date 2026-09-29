@@ -1,4 +1,4 @@
-import { GRID, MAX_ZOOM, MIN_ZOOM, clamp, magnet, type View } from '../lib/geometry'
+import { GRID, MAX_ZOOM, MIN_ZOOM, angleTo, clamp, magnet, normalizeAngle, snapTilt, type View } from '../lib/geometry'
 import { NOTE_LIMITS, STICKER_LIMITS, store } from '../store/store'
 import { addNoteAtClient, persistViewSoon } from './actions'
 import { beginEditing, endEditing } from './editors'
@@ -59,7 +59,32 @@ type Press =
       id: string
       el: HTMLElement
       s0: number
+      x0: number
+      y0: number
+      /** Cuánto crece el lado por cada píxel arrastrado en horizontal / vertical (depende de cuánto esté girado el ícono). */
+      kx: number
+      ky: number
       s: number
+      x: number
+      y: number
+    }
+  | {
+      kind: 'sticker-rotate'
+      pid: number
+      type: string
+      sx: number
+      sy: number
+      id: string
+      el: HTMLElement
+      /** Centro del ícono en la pantalla: el giro se mide desde ahí. */
+      cx: number
+      cy: number
+      t0: number
+      /** Ángulo del puntero en el último movimiento y giro acumulado (sin saltos al cruzar los ±180°). */
+      last: number
+      total: number
+      tilt: number
+      moved: boolean
     }
   | {
       kind: 'resize'
@@ -85,7 +110,8 @@ const DOUBLE_MS = 340
  *  - dos dedos → zoom y desplazamiento a la vez
  *  - sobre un posit → tocar selecciona, tocar de nuevo escribe, arrastrar lo mueve
  *  - sobre un tirador → cambia el tamaño
- *  - sobre un ícono pegado → tocar lo selecciona, arrastrar lo mueve (se pega al posit sobre el que se suelte)
+ *  - sobre un ícono pegado → tocar lo selecciona, arrastrar lo mueve (se pega al posit sobre el que se suelte);
+ *    su tirador de la esquina cambia el tamaño y el de arriba lo gira
  *  - rueda: desplaza; Ctrl/⌘ + rueda (o pellizco en el trackpad): zoom
  */
 export function attachGestures(board: HTMLElement, world: HTMLElement): () => void {
@@ -133,7 +159,12 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
     const el = target instanceof Element ? target : null
     const stickerEl = el?.closest<HTMLElement>('[data-sticker-id]') ?? null
     if (!el || !stickerEl) return null
-    return { el: stickerEl, id: stickerEl.dataset.stickerId as string, resize: !!el.closest('[data-resize-sticker]') }
+    return {
+      el: stickerEl,
+      id: stickerEl.dataset.stickerId as string,
+      resize: !!el.closest('[data-resize-sticker]'),
+      rotate: !!el.closest('[data-rotate-sticker]'),
+    }
   }
 
   function selectNote(id: string) {
@@ -266,7 +297,51 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
   function beginStickerResize(e: PointerEvent, el: HTMLElement, id: string) {
     const st = store.getState().stickers[id]
     if (!st) return
-    press = { kind: 'sticker-resize', pid: e.pointerId, sx: e.clientX, sy: e.clientY, id, el, s0: st.size, s: st.size }
+    // El tirador está en la esquina de abajo a la derecha del ícono, que gira con él: hacia dónde queda "afuera"
+    // en la pantalla lo da el giro. El ícono crece desde su centro para que el tirador siga bajo el dedo.
+    const r = (st.tilt * Math.PI) / 180
+    press = {
+      kind: 'sticker-resize',
+      pid: e.pointerId,
+      sx: e.clientX,
+      sy: e.clientY,
+      id,
+      el,
+      s0: st.size,
+      x0: st.x,
+      y0: st.y,
+      kx: Math.cos(r) - Math.sin(r),
+      ky: Math.sin(r) + Math.cos(r),
+      s: st.size,
+      x: st.x,
+      y: st.y,
+    }
+    setGesturing(true)
+    capture(e.pointerId)
+  }
+
+  function beginStickerRotate(e: PointerEvent, el: HTMLElement, id: string) {
+    const st = store.getState().stickers[id]
+    if (!st) return
+    const box = el.getBoundingClientRect()
+    const cx = box.left + box.width / 2
+    const cy = box.top + box.height / 2
+    press = {
+      kind: 'sticker-rotate',
+      pid: e.pointerId,
+      type: e.pointerType,
+      sx: e.clientX,
+      sy: e.clientY,
+      id,
+      el,
+      cx,
+      cy,
+      t0: st.tilt,
+      last: angleTo(cx, cy, e.clientX, e.clientY),
+      total: 0,
+      tilt: st.tilt,
+      moved: false,
+    }
     setGesturing(true)
     capture(e.pointerId)
   }
@@ -315,7 +390,8 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
     }
 
     if (sticker) {
-      if (sticker.resize) beginStickerResize(e, sticker.el, sticker.id)
+      if (sticker.rotate) beginStickerRotate(e, sticker.el, sticker.id)
+      else if (sticker.resize) beginStickerResize(e, sticker.el, sticker.id)
       else beginStickerPress(e, sticker.el, sticker.id)
     } else if (hit) {
       if (hit.axis) beginResize(e, hit.noteEl, hit.id, hit.axis)
@@ -397,11 +473,33 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
     }
 
     if (pr.kind === 'sticker-resize') {
-      // el lado crece con el promedio del arrastre en horizontal y vertical (el ícono siempre es cuadrado)
-      const s = clamp(pr.s0 + (dx + dy) / 2 / z, STICKER_LIMITS.min, STICKER_LIMITS.max)
+      // El ícono es cuadrado y crece desde su centro: el lado aumenta lo que el dedo se aleja del centro
+      // a lo largo de la diagonal del tirador (que sigue el giro del ícono).
+      const s = clamp(pr.s0 + (dx * pr.kx + dy * pr.ky) / z, STICKER_LIMITS.min, STICKER_LIMITS.max)
+      const grow = s - pr.s0
       pr.s = s
+      pr.x = pr.x0 - grow / 2
+      pr.y = pr.y0 - grow / 2
       pr.el.style.width = `${s}px`
       pr.el.style.height = `${s}px`
+      pr.el.style.translate = `${pr.x}px ${pr.y}px`
+      return
+    }
+
+    if (pr.kind === 'sticker-rotate') {
+      if (!pr.moved) {
+        if (Math.hypot(dx, dy) < slop(pr.type)) return
+        pr.moved = true
+        pr.el.setAttribute('data-rotating', '')
+      }
+      // giro acumulado: el ícono sigue al dedo aunque este dé vueltas alrededor
+      const a = angleTo(pr.cx, pr.cy, e.clientX, e.clientY)
+      pr.total += normalizeAngle(a - pr.last)
+      pr.last = a
+      pr.tilt = snapTilt(pr.t0 + pr.total, { strict: e.shiftKey, free: e.altKey })
+      pr.el.style.rotate = `${pr.tilt}deg`
+      pr.el.style.setProperty('--tilt', String(pr.tilt))
+      pr.el.setAttribute('data-angle', `${normalizeAngle(Math.round(pr.tilt))}°`)
       return
     }
 
@@ -499,7 +597,19 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
 
     if (pr.kind === 'sticker-resize') {
       setGesturing(false)
-      store.getState().patchSticker(pr.id, { size: pr.s })
+      store.getState().patchSticker(pr.id, { size: pr.s, x: pr.x, y: pr.y })
+      return
+    }
+
+    if (pr.kind === 'sticker-rotate') {
+      setGesturing(false)
+      pr.el.removeAttribute('data-rotating')
+      pr.el.removeAttribute('data-angle')
+      pr.el.style.removeProperty('--tilt')
+      // un toque sin arrastrar (o un gesto cancelado) deja el ícono como estaba
+      const tilt = pr.moved && !cancelled ? normalizeAngle(pr.tilt) : pr.t0
+      pr.el.style.rotate = `${tilt}deg`
+      if (tilt !== pr.t0) store.getState().patchSticker(pr.id, { tilt })
       return
     }
 

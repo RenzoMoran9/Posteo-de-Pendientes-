@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { addNoteAtCenter, fitAll, resetZoom, zoomBy } from '../board/actions'
+import { addNoteAtCenter, fitAll, resetZoom, rotateSticker, zoomBy } from '../board/actions'
 import { beginEditing, endEditing } from '../board/editors'
 import { GRID } from '../lib/geometry'
 import { STICKER_LIMITS, store } from '../store/store'
@@ -53,6 +53,10 @@ export function useKeyboardShortcuts(): void {
       } else if (stk && !mod && (e.key === '-' || e.key === '_')) {
         const st = s.stickers[stk]
         if (st) s.patchSticker(stk, { size: Math.max(STICKER_LIMITS.min, st.size / 1.15) })
+      } else if (stk && !mod && e.key === '[') {
+        rotateSticker(stk, -1)
+      } else if (stk && !mod && e.key === ']') {
+        rotateSticker(stk, 1)
       } else if (!mod && (e.key === 'i' || e.key === 'I')) {
         if (s.iconPanel) s.closeIcons()
         else s.openIcons({ mode: 'board' })

@@ -95,7 +95,7 @@ async function desktop(browser, url) {
   check('…en un hueco libre: no encima del posit', !overlaps(sb, nb), `${JSON.stringify(sb)} vs ${JSON.stringify(nb)}`)
   check('…y a la vista', inside(sb, 1280, 800, 4), JSON.stringify(sb))
   const bar = page.getByRole('toolbar', { name: 'Acciones del ícono' })
-  check('aparece la barra del ícono: Duplicar, más pequeño, más grande, Borrar', (await bar.isVisible()) && (await bar.getByRole('button').count()) === 4)
+  check('aparece la barra del ícono: Duplicar, tamaño − y +, girar ↺ ↻ y Borrar', (await bar.isVisible()) && (await bar.getByRole('button').count()) === 6)
   check('el ícono seleccionado muestra su marco y el tirador de tamaño', (await page.locator(`[data-sticker-id="${siren.id}"] .sticker-ring`).count()) === 1 && (await page.locator(`[data-sticker-id="${siren.id}"] .sticker-handle`).count()) === 1)
   await shot(page, 's3-pc-03-suelto')
 
@@ -158,7 +158,8 @@ async function desktop(browser, url) {
   const zoom = (await getState(page)).view.z
   await mouseDrag(page, centerOf(handle), { x: centerOf(handle).x + 40, y: centerOf(handle).y + 40 })
   after = await getSticker(page, siren.id)
-  check('el tirador de la esquina agranda el ícono (siempre cuadrado)', near(after.size - before.size, 40 / zoom, 1.5), `${before.size} → ${after.size}`)
+  // crece desde su centro: la esquina se aleja 40 px en cada eje, así que el lado crece el doble (80 px)
+  check('el tirador de la esquina agranda el ícono (siempre cuadrado) desde su centro', near(after.size - before.size, 80 / zoom, 1.5) && near(after.x + after.size / 2, before.x + before.size / 2, 0.6) && near(after.y + after.size / 2, before.y + before.size / 2, 0.6), `${before.size} → ${after.size}`)
   before = after
   await bar.getByRole('button', { name: 'Ícono más grande' }).click()
   after = await getSticker(page, siren.id)
