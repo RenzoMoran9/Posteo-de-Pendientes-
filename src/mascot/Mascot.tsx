@@ -3,30 +3,25 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent, RefObject } from
 import { getEditor } from '../board/editors'
 import { useCoarsePointer } from '../hooks/useCoarsePointer'
 import { store, useStore } from '../store/store'
-import { MASCOT_ART } from './art.generated'
 import { Bubble } from './Bubble'
+import { ClawdArt, ClawdPeek, type MascotRefs } from './ClawdArt'
 import { POINTER_MEMORY_MS, isDoubleBlink, lookAt, nextBlinkDelay, type Pt } from './gaze'
-import { MascotArt, Shapes, type MascotRefs } from './MascotArt'
 import { mascotStore, useMascot } from './mascotStore'
 import { poke, setMode, startMascotBrain } from './watch'
 
-/** Altura de los ojos dentro del dibujo (38 de 64): desde ahí se mide hacia dónde mirar. */
-const EYE_Y = 38 / 64
-
 /**
- * La vida de Chispa: mira al cursor (o al dedo), y si hace rato que no lo mueves, al cursor de escritura, al posit
- * seleccionado o a cualquier lado; gira el cuerpo hacia lo que mira y parpadea de vez en cuando. Todo se escribe
- * directo en el DOM (sin pasar por React) para que sea fluido.
+ * La vida de la mascota: mira al cursor (o al dedo), y si hace rato que no lo mueves, al cursor de escritura, al posit
+ * seleccionado o a cualquier lado; gira el cuerpo hacia lo que mira, corre los ojos sobre la cara y parpadea de vez en
+ * cuando. Todo se escribe directo en el DOM (sin pasar por React) para que sea fluido.
  */
-function useLife(refs: MascotRefs, figure: RefObject<HTMLElement | null>, root: RefObject<HTMLElement | null>, active: boolean): void {
+function useLife(refs: MascotRefs, root: RefObject<HTMLElement | null>, active: boolean): void {
   useEffect(() => {
     if (!active) return
     const tilt = refs.tilt.current
-    const pupils = refs.pupils.current
-    const face = refs.face.current
-    const fig = figure.current
+    const anchor = refs.anchor.current
+    const eyes = refs.eyes.current
     const el = root.current
-    if (!tilt || !pupils || !face || !fig || !el) return
+    if (!tilt || !anchor || !eyes || !el) return
 
     const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
     let pointer: (Pt & { at: number }) | null = null
@@ -63,15 +58,16 @@ function useLife(refs: MascotRefs, figure: RefObject<HTMLElement | null>, root: 
 
     const apply = () => {
       raf = 0
-      const r = fig.getBoundingClientRect()
-      const eye = { x: r.left + r.width / 2, y: r.top + r.height * EYE_Y }
+      // el ancla es un punto entre los dos ojos: en pantalla queda justo donde están (con el giro y la perspectiva)
+      const r = anchor.getBoundingClientRect()
+      const eye = { x: r.left, y: r.top }
       const look = lookAt(eye, el.dataset.mood === 'sleep' ? null : target())
       const k = reduce ? 0.35 : 1
-      const key = [look.px, look.py, look.fx, look.fy, look.rx, look.ry].map((v) => (v * k).toFixed(1)).join()
+      const key = [look.ex, look.ey, look.rx, look.ry].map((v) => (v * k).toFixed(2)).join()
       if (key === last) return
       last = key
-      pupils.style.transform = `translate(${(look.px * k).toFixed(2)}px, ${(look.py * k).toFixed(2)}px)`
-      face.style.transform = `translate(${(look.fx * k).toFixed(2)}px, ${(look.fy * k).toFixed(2)}px)`
+      eyes.style.setProperty('--ex', (look.ex * k).toFixed(3))
+      eyes.style.setProperty('--ey', (look.ey * k).toFixed(3))
       tilt.style.setProperty('--rx', `${(look.rx * k).toFixed(1)}deg`)
       tilt.style.setProperty('--ry', `${(look.ry * k).toFixed(1)}deg`)
     }
@@ -122,24 +118,19 @@ function useLife(refs: MascotRefs, figure: RefObject<HTMLElement | null>, root: 
       clearTimeout(blinkTimer)
       if (raf) cancelAnimationFrame(raf)
     }
-  }, [active, refs, figure, root])
+  }, [active, refs, root])
 }
 
-/** Solo la chispa asomando, cuando Chispa está escondida: un toque y vuelve. */
+/** La mascotita asomando, cuando está escondida: un toque y vuelve. */
 function Peek() {
   return (
-    <button type="button" className="mascot-peek" aria-label="Mostrar a Chispa, la mascota" title="Mostrar a Chispa" onClick={() => setMode('on')}>
-      <svg className="ic" viewBox="0 0 64 64" focusable="false" aria-hidden="true">
-        <g className="m-spark-wiggle">
-          <Shapes list={MASCOT_ART.spark.stalk} />
-          <Shapes list={MASCOT_ART.spark.star} />
-        </g>
-      </svg>
+    <button type="button" className="mascot-peek" aria-label="Mostrar a Claude, la mascota" title="Mostrar a la mascota" onClick={() => setMode('on')}>
+      <ClawdPeek />
     </button>
   )
 }
 
-/** Lee una medida en píxeles de una variable CSS (--m-size, --top-h, --dock-h…). */
+/** Lee una medida en píxeles de una variable CSS (--top-h, --dock-h, --m-room…). */
 function px(el: Element, name: string, fallback = 0): number {
   const v = parseFloat(getComputedStyle(el).getPropertyValue(name))
   return Number.isFinite(v) ? v : fallback
@@ -148,9 +139,9 @@ function px(el: Element, name: string, fallback = 0): number {
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v))
 
 /**
- * Chispa: una mascota de aspecto 3D (capas con perspectiva) que vive sobre el estuche. Mira lo que haces, parpadea,
- * se duerme si no tocas nada y comenta lo que escribes en una nube (ver brain.ts). Al tocarla contesta y ofrece
- * «Que calle» / «Ocultar»; si estorba, se arrastra a otro sitio y ahí se queda (en cada dispositivo).
+ * La mascota de Claude: un muñeco de bloques en 3D (ver ClawdArt.tsx) que vive sobre el estuche. Mira lo que haces,
+ * parpadea, se duerme si no tocas nada y comenta lo que escribes en una nube (ver brain.ts). Al tocarla contesta y
+ * ofrece «Que calle» / «Ocultar»; si estorba, se arrastra a otro sitio y ahí se queda (en cada dispositivo).
  */
 export function Mascot() {
   const mode = useStore((s) => s.settings.mascot)
@@ -163,13 +154,12 @@ export function Mascot() {
   const bubble = useMascot((s) => s.bubble)
 
   const rootRef = useRef<HTMLDivElement>(null)
-  const figureRef = useRef<HTMLButtonElement>(null)
-  const refs = useRef<MascotRefs>({ tilt: { current: null }, pupils: { current: null }, face: { current: null } }).current
+  const refs = useRef<MascotRefs>({ tilt: { current: null }, anchor: { current: null }, eyes: { current: null } }).current
   const drag = useRef<{ pid: number; sx: number; sy: number; left0: number; top0: number; moved: boolean; x: number; y: number } | null>(null)
   const justDragged = useRef(false)
 
   useEffect(() => startMascotBrain(), [])
-  useLife(refs, figureRef, rootRef, mode !== 'off')
+  useLife(refs, rootRef, mode !== 'off')
 
   // ── arrastrarla: el dedo (o el ratón) la lleva por el espacio libre; al soltarla se guarda dónde quedó ──
   const down = (e: ReactPointerEvent<HTMLButtonElement>) => {
@@ -198,7 +188,7 @@ export function Mascot() {
       mascotStore.getState().feel('surprised', 120_000)
     }
     const app = (el.offsetParent ?? document.body).getBoundingClientRect()
-    const size = px(el, '--m-size', 92)
+    const size = el.offsetWidth
     const top = px(document.documentElement, '--top-h') + px(el, '--m-room', 230)
     const w = Math.max(1, app.width - size)
     const h = Math.max(1, app.height - top - px(document.documentElement, '--dock-h', 110) - size)
@@ -239,10 +229,9 @@ export function Mascot() {
     >
       {bubble && <Bubble key={bubble.id} bubble={bubble} side={custom && pos.x < 0.5 ? 'left' : 'right'} />}
       <button
-        ref={figureRef}
         type="button"
         className="mascot-figure"
-        aria-label="Chispa, tu asistente. Tócala para que te diga algo; arrástrala para moverla"
+        aria-label="Claude, tu asistente (mascota). Tócala para que te diga algo; arrástrala para moverla"
         onMouseDown={(e) => e.preventDefault()}
         onPointerDown={down}
         onPointerMove={move}
@@ -252,7 +241,7 @@ export function Mascot() {
           if (!justDragged.current) poke()
         }}
       >
-        <MascotArt refs={refs} />
+        <ClawdArt refs={refs} />
       </button>
     </div>
   )

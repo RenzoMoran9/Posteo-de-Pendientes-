@@ -7,7 +7,7 @@
 export interface CloudShape {
   /** Trazo del contorno (coordenadas dentro de w × h). */
   d: string
-  /** Bolitas que unen la nube con Chispa: [cx, cy, rx, ry]. */
+  /** Bolitas que unen la nube con la mascota: [cx, cy, rx, ry]. */
   tail: ReadonlyArray<readonly [number, number, number, number]>
 }
 
@@ -35,7 +35,7 @@ const f = (n: number): string => String(Math.round(n * 10) / 10)
 
 /**
  * `w` × `h` es la caja de la nube completa (los bultos quedan dentro de ella). `rb` es el radio de un bulto.
- * `side` dice de qué lado sale la cola de bolitas (hacia Chispa).
+ * `side` dice de qué lado sale la cola de bolitas (hacia la mascota).
  */
 export function cloudShape(w: number, h: number, seed: number, side: 'left' | 'right' = 'right', rb = 8.5): CloudShape {
   const rnd = rngFrom(seed)

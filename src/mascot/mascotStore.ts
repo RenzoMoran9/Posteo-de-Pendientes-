@@ -1,6 +1,6 @@
 import { createStore, useStore as useZustand } from 'zustand'
 
-/** Cómo se siente Chispa. Cada estado cambia ojos, boca y adornos (ver MascotArt y mascot.css). */
+/** Cómo se siente la mascota. Cada estado cambia los ojos, los bracitos y los adornos (ver ClawdArt y mascot.css). */
 export type Mood = 'idle' | 'happy' | 'think' | 'surprised' | 'sleep'
 
 /** Un botoncito dentro de la nube (una sugerencia o un ajuste). */
@@ -24,9 +24,9 @@ interface MascotUI {
   mood: Mood
   asleep: boolean
   bubble: Bubble | null
-  /** Mientras la nube «escribe» su texto, Chispa mueve la boca. */
+  /** Mientras la nube «escribe» su texto, la mascota asiente y mueve los bracitos. */
   talking: boolean
-  /** Sube cada vez que Chispa da un saltito (para reiniciar la animación). */
+  /** Sube cada vez que la mascota da un saltito (para reiniciar la animación). */
   hops: number
   say(text: string, opts?: { mood?: Mood; chips?: Chip[]; ms?: number }): void
   hush(): void

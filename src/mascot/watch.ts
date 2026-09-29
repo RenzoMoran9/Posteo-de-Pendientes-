@@ -7,7 +7,7 @@ import { Brain, type Comment, type Suggest, type Topic } from './brain'
 import { mascotStore, type Chip, type Mood } from './mascotStore'
 
 /**
- * El pegamento entre la app y Chispa: mira lo que pasa (escribes, marcas un pendiente, dejas de tocar la
+ * El pegamento entre la app y la mascota: mira lo que pasa (escribes, marcas un pendiente, dejas de tocar la
  * pantalla…), se lo cuenta al «cerebro» y muestra lo que este decida decir. Todo ocurre en este aparato.
  */
 export const brain = new Brain()
@@ -117,7 +117,7 @@ function settingsChips(): Chip[] {
   return chips
 }
 
-/** Le tocaron a Chispa: siempre contesta (aunque esté callada) y ofrece los ajustes. */
+/** Le tocaron a la mascota: siempre contesta (aunque esté callada) y ofrece los ajustes. */
 export function poke(): void {
   activity()
   const c = brain.onPoke({ ...boardTasks(), topics: boardTopics() })
@@ -243,7 +243,7 @@ function greet(): void {
   deliver(brain.onGreet({ hour: new Date().getHours(), open: t.open, urgent: t.urgent, anyTasks: t.total > 0 }))
 }
 
-/** Pone en marcha a Chispa (una vez). Devuelve la función que la detiene. */
+/** Pone en marcha a la mascota (una vez). Devuelve la función que la detiene. */
 export function startMascotBrain(): () => void {
   const unsub = store.subscribe(onStore)
   let lastMove = 0

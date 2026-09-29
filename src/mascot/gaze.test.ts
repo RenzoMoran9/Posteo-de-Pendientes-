@@ -1,47 +1,98 @@
 import { describe, expect, it } from 'vitest'
+import { CLAWD, FIGURE_H, FIGURE_W, FLOOR_Y, armCenterX, eyeRoom, legCenters } from './clawd'
 import { GAZE, isDoubleBlink, lookAt, nextBlinkDelay } from './gaze'
 
 const eye = { x: 500, y: 400 }
+const straight = { ex: 0, ey: 0, rx: 0, ry: 0 }
 
 describe('lookAt', () => {
   it('sin nada que mirar, mira al frente', () => {
-    expect(lookAt(eye, null)).toEqual({ px: 0, py: 0, fx: 0, fy: 0, rx: 0, ry: 0 })
-    expect(lookAt(eye, { x: 500, y: 400 })).toEqual({ px: 0, py: 0, fx: 0, fy: 0, rx: 0, ry: 0 })
+    expect(lookAt(eye, null)).toEqual(straight)
+    expect(lookAt(eye, { x: 500, y: 400 })).toEqual(straight)
   })
 
-  it('las pupilas van hacia el punto y el cuerpo gira hacia ese lado', () => {
+  it('los ojos van hacia el punto y el cuerpo gira hacia ese lado', () => {
     const left = lookAt(eye, { x: 100, y: 400 })
-    expect(left.px).toBeLessThan(0)
+    expect(left.ex).toBeLessThan(0)
     expect(left.ry).toBeLessThan(0)
     const right = lookAt(eye, { x: 900, y: 400 })
-    expect(right.px).toBeGreaterThan(0)
+    expect(right.ex).toBeGreaterThan(0)
     expect(right.ry).toBeGreaterThan(0)
     const up = lookAt(eye, { x: 500, y: 0 })
-    expect(up.py).toBeLessThan(0)
+    expect(up.ey).toBeLessThan(0)
     expect(up.rx).toBeGreaterThan(0) // arriba = la cara se inclina hacia atrás
     const down = lookAt(eye, { x: 500, y: 800 })
-    expect(down.py).toBeGreaterThan(0)
+    expect(down.ey).toBeGreaterThan(0)
     expect(down.rx).toBeLessThan(0)
   })
 
   it('nunca pasa de sus máximos, por lejos que esté el punto', () => {
     const far = lookAt(eye, { x: 50_000, y: -50_000 })
-    expect((far.px / GAZE.pupilX) ** 2 + (far.py / GAZE.pupilY) ** 2).toBeLessThanOrEqual(1 + 1e-9)
-    expect(Math.hypot(far.fx, far.fy)).toBeLessThanOrEqual(GAZE.face + 1e-9)
+    expect(Math.abs(far.ex)).toBeLessThanOrEqual(GAZE.eyeX + 1e-9)
+    expect(Math.abs(far.ey)).toBeLessThanOrEqual(GAZE.eyeY + 1e-9)
     expect(Math.abs(far.ry)).toBeLessThanOrEqual(GAZE.tiltY)
     expect(Math.abs(far.rx)).toBeLessThanOrEqual(GAZE.tiltX)
   })
 
-  it('cerca del ojo mueve poco las pupilas (mira «de frente»)', () => {
+  it('cerca del ojo mueve poco los ojos (mira «de frente»)', () => {
     const near = lookAt(eye, { x: 530, y: 400 })
     const far = lookAt(eye, { x: 900, y: 400 })
-    expect(near.px).toBeGreaterThan(0)
-    expect(near.px).toBeLessThan(far.px)
+    expect(near.ex).toBeGreaterThan(0)
+    expect(near.ex).toBeLessThan(far.ex)
   })
 
-  it('la pupila no se sale del ojo (6,4 × 7,4 con pupila de 3,7)', () => {
-    expect(GAZE.pupilX).toBeLessThan(6.4 - 3.7)
-    expect(GAZE.pupilY).toBeLessThan(7.4 - 3.7)
+  it('el ojo no se sale de la cara aunque mire lo más lejos posible', () => {
+    const room = eyeRoom()
+    expect(room.x).toBeGreaterThan(0)
+    expect(room.y).toBeGreaterThan(0)
+    for (const target of [
+      { x: 9000, y: 400 },
+      { x: -9000, y: 400 },
+      { x: 500, y: -9000 },
+      { x: 500, y: 9000 },
+    ]) {
+      const l = lookAt(eye, target)
+      expect(Math.abs(l.ex)).toBeLessThanOrEqual(room.x)
+      expect(Math.abs(l.ey)).toBeLessThanOrEqual(room.y)
+    }
+  })
+})
+
+describe('el modelo 3D', () => {
+  const { body, arm, leg, eye: e } = CLAWD
+
+  it('las cuatro patas caen bajo el cuerpo, en dos parejas simétricas y sin tocarse', () => {
+    const xs = legCenters()
+    expect(xs).toHaveLength(4)
+    expect(xs[0]).toBeCloseTo(-xs[3])
+    expect(xs[1]).toBeCloseTo(-xs[2])
+    for (let i = 1; i < 4; i++) expect(xs[i] - xs[i - 1]).toBeGreaterThanOrEqual(leg.w - 1e-9) // sin encimarse
+    expect(xs[1] - xs[0]).toBeCloseTo(leg.w + leg.slit) // la rendija entre las dos de cada pareja
+    expect(xs[2] - xs[1]).toBeCloseTo(leg.pair + leg.w)
+    expect(xs[3] + leg.w / 2).toBeLessThan(body.w / 2) // no salen del cuerpo
+  })
+
+  it('los bracitos salen de los costados, a media altura del cuerpo', () => {
+    expect(armCenterX(-1)).toBeCloseTo(-(body.w / 2 + arm.w / 2))
+    expect(armCenterX(1)).toBeCloseTo(body.w / 2 + arm.w / 2)
+    expect(arm.y - arm.h / 2).toBeGreaterThan(-body.h / 2)
+    expect(arm.y + arm.h / 2).toBeLessThan(body.h / 2)
+    expect(arm.d).toBeLessThanOrEqual(body.d)
+  })
+
+  it('los dos ojos caben en la cara, a los lados del centro y sobre la mitad de arriba', () => {
+    expect(e.x - e.w / 2).toBeGreaterThan(0)
+    expect(e.x + e.w / 2).toBeLessThan(body.w / 2)
+    expect(e.y - e.h / 2).toBeGreaterThan(-body.h / 2)
+    expect(e.y + e.h / 2).toBeLessThan(body.h / 2)
+    expect(e.h).toBeCloseTo(e.w * 2) // son rectángulos «de dos cuadros»
+  })
+
+  it('la figura entera cabe en su caja (26,8 × 18,5 u en 27,6 u de ancho)', () => {
+    expect(FIGURE_W).toBeCloseTo(26.8)
+    expect(FIGURE_H).toBeCloseTo(18.5)
+    expect(FLOOR_Y).toBeCloseTo(11.25)
+    expect(FIGURE_W).toBeLessThan(27.6)
   })
 })
 

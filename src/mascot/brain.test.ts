@@ -173,7 +173,7 @@ describe('saludos y avisos', () => {
   })
 
   it('se presenta la primera vez', () => {
-    expect(make().brain.onWelcome().text).toContain('Chispa')
+    expect(make().brain.onWelcome().text).toContain('Claude')
   })
 
   it('al tocarla siempre contesta: resumen, consejo o ánimo', () => {

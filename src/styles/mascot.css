@@ -1,7 +1,7 @@
-/* ─────────── Chispa, la mascota ───────────
-   Vive sobre el estuche (en la PC ancha, en la esquina). El aspecto 3D sale de capas con perspectiva
-   (cuerpo, chispa y cara a distinta profundidad) que giran hacia lo que mira, degradados de luz y una sombra en el suelo.
-   El estado de ánimo (data-mood) muestra unos ojos/bocas/adornos y esconde otros. */
+/* ─────────── La mascota de Claude ───────────
+   Vive sobre el estuche (en la PC ancha, en la esquina). Es un muñeco de bloques como el impreso en 3D: cuerpo, dos
+   bracitos y cuatro patas hechos con caras de CSS en 3D (ver ClawdArt.tsx), con luz arriba a la izquierda. Gira hacia lo
+   que mira y sus ojos se corren sobre la cara. El estado de ánimo (data-mood) cambia los ojos, los brazos y los adornos. */
 
 .mascot {
   --m-size: 92px;
@@ -31,7 +31,7 @@
 
 @media (max-width: 520px) {
   .mascot {
-    --m-size: 78px;
+    --m-size: 82px;
   }
 }
 
@@ -72,7 +72,7 @@
   inset: 0;
   pointer-events: auto;
   cursor: grab;
-  transform-origin: 50% 100%;
+  transform-origin: 50% 92%;
   /* se arrastra con el dedo: el navegador no debe quedarse el gesto */
   touch-action: none;
 }
@@ -103,66 +103,347 @@
   100% { transform: none; }
 }
 
-/* ── el escenario 3D ── */
+/* ── el escenario 3D ──
+   1 u = --u píxeles: el muñeco entero mide 26,8 u de ancho (con los brazos) y 18,5 u de alto (ver clawd.ts). */
 
 .m-stage {
+  --u: calc(var(--m-size) / 27.6);
   position: absolute;
   inset: 0;
-  perspective: 340px;
-  perspective-origin: 50% 60%;
-  transform-origin: 50% 100%;
+  perspective: calc(var(--u) * 120);
+  perspective-origin: 50% 66%;
+  transform-origin: 50% 92%;
   animation: m-breathe 3.8s ease-in-out infinite;
 }
 
 @keyframes m-breathe {
   0%, 100% { transform: scale(1, 1); }
-  50% { transform: scale(1.012, 1.03); }
+  50% { transform: scale(1.008, 1.022); }
 }
 
 .mascot[data-mood='sleep'] .m-stage {
   animation-duration: 6.4s;
 }
 
-.m-ground,
-.m-layer {
+.m-ground {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+  left: 50%;
+  top: calc(92% - var(--u) * 1.1);
+  width: calc(var(--u) * 25);
+  height: calc(var(--u) * 4.6);
+  translate: -50% 0;
+  background: radial-gradient(closest-side, rgb(30 20 6 / 0.44), rgb(30 20 6 / 0.2) 60%, transparent);
 }
 
-.m-ground-shadow {
-  transform-origin: 32px 61.5px;
+.mascot[data-hop='a'] .m-ground {
+  animation: m-shadow-a 0.72s ease-out;
 }
 
-.mascot[data-hop='a'] .m-ground-shadow {
-  animation: m-shadow 0.72s ease-out;
+.mascot[data-hop='b'] .m-ground {
+  animation: m-shadow-b 0.72s ease-out;
 }
 
-.mascot[data-hop='b'] .m-ground-shadow {
-  animation: m-shadow 0.72s ease-out;
-}
-
-@keyframes m-shadow {
+@keyframes m-shadow-a {
   0%, 100% { transform: scale(1); opacity: 1; }
   22% { transform: scale(0.72); opacity: 0.6; }
   46% { transform: scale(1.1); opacity: 1; }
 }
 
-.m-tilt {
+@keyframes m-shadow-b {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  22% { transform: scale(0.72); opacity: 0.6; }
+  46% { transform: scale(1.1); opacity: 1; }
+}
+
+.m-rig {
   position: absolute;
   inset: 0;
   transform-style: preserve-3d;
-  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+}
+
+/* El muñeco gira sobre el centro del cuerpo. Su postura de descanso lo muestra un poco de lado y de arriba (como en la
+   foto) para que se note que tiene volumen; --rx / --ry son lo que se suma al mirar (los pone Mascot.tsx). */
+.m-tilt {
+  --base-rx: -10deg;
+  --base-ry: 12deg;
+  /* luz de arriba a la izquierda: arriba la cara más clara, a la derecha la más oscura de los lados, abajo la más oscura */
+  --c-f1: #ff8a24;
+  --c-f2: #ff7407;
+  --c-t1: #ffb35a;
+  --c-t2: #ffa03a;
+  --c-l1: #ff8218;
+  --c-l2: #ea6a05;
+  --c-r1: #ea6b05;
+  --c-r2: #cc5900;
+  --c-b: #a34300;
+  position: absolute;
+  left: 50%;
+  top: calc(92% - var(--u) * 11.25);
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(calc(var(--base-rx) + var(--rx, 0deg))) rotateY(calc(var(--base-ry) + var(--ry, 0deg)));
   transition: transform 0.18s ease-out;
 }
 
-/* Profundidad: la cara flota delante del cuerpo, las patas y los brazos van detrás. */
-.m-back { transform: translateZ(-12px); }
-.m-body { transform: translateZ(0); }
-.m-spark { transform: translateZ(7px); }
-.m-face { transform: translateZ(11px); }
+/* Un bloque: seis caras de CSS. --w / --h / --d son sus medidas y --x / --y / --z dónde está (todo en u). */
+.bx {
+  --W: calc(var(--u) * var(--w));
+  --H: calc(var(--u) * var(--h));
+  --D: calc(var(--u) * var(--d));
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  translate: calc(var(--u) * var(--x)) calc(var(--u) * var(--y)) calc(var(--u) * var(--z));
+}
+
+.fc {
+  position: absolute;
+  display: block;
+  backface-visibility: hidden;
+}
+
+.fc-f {
+  width: var(--W);
+  height: var(--H);
+  left: calc(var(--W) / -2);
+  top: calc(var(--H) / -2);
+  transform: translateZ(calc(var(--D) / 2));
+  background: linear-gradient(176deg, var(--c-f1), var(--c-f2));
+  box-shadow: 0 0 0 0.6px var(--c-f2);
+}
+
+.fc-t {
+  width: var(--W);
+  height: var(--D);
+  left: calc(var(--W) / -2);
+  top: calc(var(--D) / -2);
+  transform: rotateX(90deg) translateZ(calc(var(--H) / 2));
+  background: linear-gradient(0deg, var(--c-t2), var(--c-t1));
+  box-shadow: 0 0 0 0.6px var(--c-t2);
+}
+
+.fc-b {
+  width: var(--W);
+  height: var(--D);
+  left: calc(var(--W) / -2);
+  top: calc(var(--D) / -2);
+  transform: rotateX(-90deg) translateZ(calc(var(--H) / 2));
+  background: var(--c-b);
+  box-shadow: 0 0 0 0.6px var(--c-b);
+}
+
+.fc-l {
+  width: var(--D);
+  height: var(--H);
+  left: calc(var(--D) / -2);
+  top: calc(var(--H) / -2);
+  transform: rotateY(-90deg) translateZ(calc(var(--W) / 2));
+  background: linear-gradient(180deg, var(--c-l1), var(--c-l2));
+  box-shadow: 0 0 0 0.6px var(--c-l2);
+}
+
+.fc-r {
+  width: var(--D);
+  height: var(--H);
+  left: calc(var(--D) / -2);
+  top: calc(var(--H) / -2);
+  transform: rotateY(90deg) translateZ(calc(var(--W) / 2));
+  background: linear-gradient(180deg, var(--c-r1), var(--c-r2));
+  box-shadow: 0 0 0 0.6px var(--c-r2);
+}
+
+/* Una articulación (hombro o cadera): un punto que se mueve; lo que cuelga de él gira con la propiedad `rotate`. */
+.pv {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  translate: calc(var(--u) * var(--x)) calc(var(--u) * var(--y));
+}
+
+/* Las patas y los bracitos, un poco en sombra respecto al cuerpo. */
+.m-leg {
+  --c-f1: #f57812;
+  --c-f2: #e26200;
+  --c-l1: #ee6d08;
+  --c-l2: #d75d00;
+  --c-r1: #d75d00;
+  --c-r2: #bd5100;
+}
+
+.m-leg .bx > .fc-b {
+  --c-b: #8e3900;
+}
+
+/* ── la cara: dos ojos oscuros sobre el frente ── */
+
+.m-eyes-anchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  translate: 0 calc(var(--u) * var(--y)) calc(var(--u) * var(--z));
+}
+
+.m-eyes {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  /* --ex / --ey: cuánto se corren los ojos hacia lo que miran (u; los pone Mascot.tsx) */
+  translate: calc(var(--u) * var(--ex, 0)) calc(var(--u) * var(--ey, 0));
+  transition: translate 0.1s ease-out;
+}
+
+.m-eye {
+  --sx: 1;
+  --sy: 1;
+  --dy: 0;
+  position: absolute;
+  display: block;
+  width: calc(var(--u) * 1.9);
+  height: calc(var(--u) * 3.8);
+  left: calc(var(--u) * (var(--ox) - 0.95));
+  top: calc(var(--u) * -1.9);
+  border-radius: calc(var(--u) * 0.28);
+  background: linear-gradient(160deg, #35323a, #1b191d);
+  translate: 0 calc(var(--u) * var(--dy));
+  transform: scale(var(--sx), var(--sy));
+  clip-path: polygon(0 0, 50% 0, 100% 0, 100% 100%, 50% 100%, 0 100%);
+  transition:
+    transform 0.08s ease-in,
+    translate 0.16s ease-out,
+    clip-path 0.14s;
+}
+
+/* Ánimos: contenta (ojos como «^ ^»), dormida (rayitas), sorprendida (ojos más altos), pensando (mira arriba). */
+.mascot[data-mood='happy'] .m-eye {
+  --sx: 1.4;
+  --sy: 0.56;
+  clip-path: polygon(0 100%, 50% 6%, 100% 100%, 72% 100%, 50% 52%, 28% 100%);
+}
+
+.mascot[data-mood='sleep'] .m-eye {
+  --sx: 1.5;
+  --sy: 0.13;
+}
+
+.mascot[data-mood='surprised'] .m-eye {
+  --sx: 1.12;
+  --sy: 1.22;
+}
+
+.mascot[data-mood='think'] .m-eye {
+  --dy: -0.9;
+}
+
+.mascot[data-mood='think'] .m-eye-r {
+  --sy: 0.78;
+  --dy: -1.5;
+}
+
+/* parpadeo (lo activa Mascot.tsx con data-blink) */
+.mascot[data-blink] .m-eye {
+  --sy: 0.1;
+}
+
+/* ── brazos y patas ── */
+
+.m-arm,
+.m-leg {
+  transition: rotate 0.3s cubic-bezier(0.3, 1.45, 0.5, 1);
+}
+
+/* festejando: los dos brazos arriba, saludando */
+.mascot[data-mood='happy'] .m-arm-l {
+  animation: m-wave-l 0.42s ease-in-out infinite alternate;
+}
+
+.mascot[data-mood='happy'] .m-arm-r {
+  animation: m-wave-r 0.42s ease-in-out infinite alternate;
+}
+
+@keyframes m-wave-l {
+  from { rotate: 34deg; }
+  to { rotate: 64deg; }
+}
+
+@keyframes m-wave-r {
+  from { rotate: -34deg; }
+  to { rotate: -64deg; }
+}
+
+.mascot[data-mood='surprised'] .m-arm-l {
+  rotate: 30deg;
+}
+
+.mascot[data-mood='surprised'] .m-arm-r {
+  rotate: -30deg;
+}
+
+/* pensando: levanta un bracito */
+.mascot[data-mood='think'] .m-arm-r {
+  rotate: -52deg;
+}
+
+/* hablando: mueve los bracitos y asiente al ritmo del texto */
+.mascot[data-talking] .m-arm-l {
+  animation: m-flap-l 0.46s ease-in-out infinite alternate;
+}
+
+.mascot[data-talking] .m-arm-r {
+  animation: m-flap-r 0.46s ease-in-out infinite alternate 0.12s;
+}
+
+@keyframes m-flap-l {
+  from { rotate: 2deg; }
+  to { rotate: 26deg; }
+}
+
+@keyframes m-flap-r {
+  from { rotate: -2deg; }
+  to { rotate: -26deg; }
+}
+
+.mascot[data-talking] .m-rig {
+  animation: m-nod 0.46s ease-in-out infinite;
+}
+
+@keyframes m-nod {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(calc(var(--u) * -0.35)); }
+}
+
+/* en brazos (la están arrastrando): las patitas cuelgan y patalean */
+.mascot[data-dragging] .m-leg:nth-child(odd) {
+  animation: m-dangle-a 0.32s ease-in-out infinite alternate;
+}
+
+.mascot[data-dragging] .m-leg:nth-child(even) {
+  animation: m-dangle-b 0.32s ease-in-out infinite alternate;
+}
+
+@keyframes m-dangle-a {
+  from { rotate: -16deg; }
+  to { rotate: 14deg; }
+}
+
+@keyframes m-dangle-b {
+  from { rotate: 14deg; }
+  to { rotate: -16deg; }
+}
+
+/* ── adornos que no giran con el cuerpo ── */
 
 .m-fx {
   position: absolute;
@@ -173,72 +454,10 @@
   pointer-events: none;
 }
 
-.m-pupils {
-  transition: transform 0.09s ease-out;
-}
-
-.m-face-shift {
-  transition: transform 0.14s ease-out;
-}
-
-/* ── chispa de la cabeza ── */
-
-.m-spark-wiggle {
-  transform-origin: 31px 23.5px;
-  animation: m-sway 4.6s ease-in-out infinite;
-}
-
-@keyframes m-sway {
-  0%, 100% { transform: rotate(-3deg); }
-  50% { transform: rotate(4deg); }
-}
-
-.mascot[data-mood='think'] .m-spark-wiggle {
-  animation-duration: 1.1s;
-}
-
-/* ── ojos, bocas y adornos según el ánimo ── */
-
-.m-eyes-happy,
-.m-eyes-sleep,
-.m-mouth,
 .m-zzz,
 .m-party,
 .m-alert {
   display: none;
-}
-
-.m-mouth-smile {
-  display: inline;
-}
-
-.m-blink {
-  transform-origin: 32px 38px;
-  transition: transform 0.07s ease-in;
-}
-
-.mascot[data-mood='happy'] .m-eyes-open,
-.mascot[data-mood='sleep'] .m-eyes-open {
-  display: none;
-}
-
-.mascot[data-mood='happy'] .m-eyes-happy,
-.mascot[data-mood='sleep'] .m-eyes-sleep {
-  display: inline;
-}
-
-.mascot[data-mood='happy'] .m-mouth-smile,
-.mascot[data-mood='think'] .m-mouth-smile,
-.mascot[data-mood='surprised'] .m-mouth-smile,
-.mascot[data-mood='sleep'] .m-mouth-smile {
-  display: none;
-}
-
-.mascot[data-mood='happy'] .m-mouth-grin,
-.mascot[data-mood='think'] .m-mouth-hm,
-.mascot[data-mood='surprised'] .m-mouth-o,
-.mascot[data-mood='sleep'] .m-mouth-flat {
-  display: inline;
 }
 
 .mascot[data-mood='happy'] .m-party,
@@ -247,67 +466,6 @@
   display: inline;
 }
 
-.mascot[data-mood='surprised'] .m-blink {
-  transform: scale(1.12);
-}
-
-/* parpadeo (lo activa Mascot.tsx con data-blink) */
-.mascot[data-blink] .m-blink {
-  transform: scaleY(0.1);
-}
-
-/* hablando: la boca se abre y se cierra mientras la nube escribe */
-.mascot[data-talking] .m-mouth-hm,
-.mascot[data-talking] .m-mouth-o {
-  display: none;
-}
-
-.mascot[data-talking] .m-mouth-smile,
-.mascot[data-talking] .m-mouth-grin {
-  display: inline;
-}
-
-.mascot[data-talking] .m-mouth-smile {
-  animation: m-talk-a 0.34s steps(1) infinite;
-}
-
-.mascot[data-talking] .m-mouth-grin {
-  animation: m-talk-b 0.34s steps(1) infinite;
-}
-
-@keyframes m-talk-a {
-  0% { opacity: 1; }
-  50% { opacity: 0; }
-}
-
-@keyframes m-talk-b {
-  0% { opacity: 0; }
-  50% { opacity: 1; }
-}
-
-/* brazos arriba al festejar */
-.m-arm-l { transform-origin: 14px 44px; }
-.m-arm-r { transform-origin: 50px 44px; }
-
-.mascot[data-mood='happy'] .m-arm-l {
-  animation: m-wave-l 0.5s ease-in-out infinite alternate;
-}
-
-.mascot[data-mood='happy'] .m-arm-r {
-  animation: m-wave-r 0.5s ease-in-out infinite alternate;
-}
-
-@keyframes m-wave-l {
-  from { transform: rotate(26deg); }
-  to { transform: rotate(58deg); }
-}
-
-@keyframes m-wave-r {
-  from { transform: rotate(-26deg); }
-  to { transform: rotate(-58deg); }
-}
-
-/* adornos que flotan */
 .m-zzz {
   animation: m-float 2.6s ease-in-out infinite;
 }
@@ -326,26 +484,25 @@
   to { transform: scale(1); opacity: 1; }
 }
 
-/* ── escondida: solo asoma la chispa ── */
+/* ── escondida: solo asoma la mascotita ── */
 
 .mascot-peek {
   position: absolute;
   z-index: 35;
   right: calc(var(--safe-r) + 14px);
-  bottom: calc(var(--dock-h, 110px) - 4px);
+  bottom: calc(var(--dock-h, 110px) - 2px);
   display: grid;
-  place-items: center;
+  place-items: end center;
   width: 54px;
-  height: 54px;
-  --icon-ink: var(--ink);
-  --icon-line: 2.4;
+  height: 46px;
   transition: bottom 0.3s cubic-bezier(0.3, 1.45, 0.5, 1);
   animation: m-pop 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
 }
 
-.mascot-peek .ic {
-  width: 44px;
-  height: 44px;
+.m-peek-art {
+  width: 46px;
+  height: 38px;
+  filter: drop-shadow(1.5px 2px 0 rgb(18 22 26 / 0.35));
 }
 
 @media (min-width: 1000px) {
@@ -360,7 +517,7 @@
 .mb {
   position: absolute;
   right: calc(46% - 22px);
-  bottom: calc(100% + 38px);
+  bottom: calc(100% + 36px - 0.25 * var(--m-size));
   width: max-content;
   max-width: min(272px, calc(100vw - 36px));
   padding: 15px 20px 14px;

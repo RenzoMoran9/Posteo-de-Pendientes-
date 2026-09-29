@@ -40,7 +40,7 @@ describe('cloudShape', () => {
     expect(count(300, 120)).toBeGreaterThan(count(120, 50))
   })
 
-  it('la cola son tres bolitas que bajan hacia Chispa, cada vez más chicas', () => {
+  it('la cola son tres bolitas que bajan hacia la mascota, cada vez más chicas', () => {
     const r = cloudShape(240, 80, 2, 'right')
     expect(r.tail).toHaveLength(3)
     const [a, b, c] = r.tail

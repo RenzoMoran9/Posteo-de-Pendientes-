@@ -2,7 +2,7 @@ import { GREETINGS, PHRASES, fill, type PhraseKey } from './phrases'
 import type { Mood } from './mascotStore'
 import { tagsOf, type NoteFacts, type Tag } from './analyze'
 
-/** Algo que Chispa ofrece hacer con un toque (pintar el posit de rojo, pegarle un ícono). */
+/** Algo que la mascota ofrece hacer con un toque (pintar el posit de rojo, pegarle un ícono). */
 export interface Suggest {
   kind: 'paint' | 'icon'
   label: string
@@ -39,7 +39,7 @@ const ICON_FOR: Partial<Record<Tag, { icon: string; label: string; also?: string
 /** Rojo de la paleta de papeles (src/lib/palette.ts). */
 export const RED_PAPER = '#EF6A62'
 
-/** Límites para no ser pesada: Chispa comenta pocas veces y siempre en una pausa. */
+/** Límites para no ser pesada: la mascota comenta pocas veces y siempre en una pausa. */
 export const LIMITS = {
   /** Mínimo entre dos comentarios que ella empieza. */
   chatGapMs: 20_000,
@@ -103,7 +103,7 @@ export interface GreetInput {
 }
 
 /**
- * El «cerebro» de Chispa: decide si hablar, de qué y cuándo. No toca la pantalla (eso lo hace watch.ts);
+ * El «cerebro» de reglas de la mascota: decide si hablar, de qué y cuándo. No toca la pantalla (eso lo hace watch.ts);
  * recibe lo que pasó y devuelve un comentario o nada. Reglas simples y transparentes, sin IA.
  * `now` y `rng` se pueden inyectar para probarlo.
  */

@@ -1,6 +1,6 @@
 /*
- * Prueba con un navegador real (Chromium): Chispa, la mascota.
- *   - se ve sobre el estuche, con aspecto 3D (capas con perspectiva)
+ * Prueba con un navegador real (Chromium): la mascota de Claude.
+ *   - se ve sobre el estuche, hecha de bloques en 3D (caras de CSS con perspectiva y luz)
  *   - mira al cursor, al dedo y al cursor de escritura; parpadea; se duerme y se despierta
  *   - saluda, comenta lo que escribes (con sugerencias que se pueden aceptar), celebra los pendientes
  *   - al tocarla contesta y deja elegir «Que calle» / «Ocultar» (y volver a mostrarla)
@@ -19,12 +19,21 @@ const mstate = (page) =>
   })
 const mode = (page) => page.evaluate(() => window.__posits.store.getState().settings.mascot)
 const bubble = (page) => page.locator('.mb')
+/** Cuánto se corrieron los ojos sobre la cara (en u, las unidades del modelo). */
 const pupils = (page) =>
   page.evaluate(() => {
-    const g = document.querySelector('.m-pupils')
-    const m = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec((g && g.style.transform) || '')
-    return m ? { x: Number(m[1]), y: Number(m[2]) } : { x: 0, y: 0 }
+    const g = document.querySelector('.m-eyes')
+    return { x: parseFloat(g.style.getPropertyValue('--ex')) || 0, y: parseFloat(g.style.getPropertyValue('--ey')) || 0 }
   })
+/** Escala (ancho, alto) con la que se dibuja el ojo izquierdo, y su recorte. */
+const eyeShape = (page) =>
+  page.evaluate(() => {
+    const e = document.querySelector('.m-eye-l')
+    const cs = getComputedStyle(e)
+    const m = new DOMMatrixReadOnly(cs.transform)
+    return { sx: m.a, sy: m.d, sv: parseFloat(cs.getPropertyValue('--sy')), clip: cs.clipPath }
+  })
+const armAngle = (page, sel) => page.evaluate((q) => parseFloat(getComputedStyle(document.querySelector(q)).rotate) || 0, sel)
 const tilt = (page) =>
   page.evaluate(() => {
     const t = document.querySelector('.m-tilt')
@@ -53,27 +62,37 @@ async function desktop(browser, url) {
   await m.waitFor()
   const mb = await m.boundingBox()
   const cs = await page.locator('.case').boundingBox()
-  check('Chispa se ve en la esquina de abajo a la derecha, entera y sin tapar el estuche', inside(mb, 1280, 800, 4) && mb.x > cs.x + cs.width && mb.width >= 100, JSON.stringify({ mb, cs }))
-  const layers = await page.evaluate(() => ({
-    layers: document.querySelectorAll('.m-layer').length,
-    perspective: getComputedStyle(document.querySelector('.m-stage')).perspective,
-    style: getComputedStyle(document.querySelector('.m-tilt')).transformStyle,
-    z: [...document.querySelectorAll('.m-layer')].map((l) => getComputedStyle(l).transform),
-    grads: document.querySelectorAll('radialGradient, linearGradient').length,
-  }))
-  check('tiene aspecto 3D: cuatro capas a distinta profundidad dentro de un escenario con perspectiva', layers.layers === 4 && layers.perspective !== 'none' && layers.style === 'preserve-3d' && new Set(layers.z).size >= 3, JSON.stringify(layers))
-  check('…con degradados de luz que le dan volumen', layers.grads >= 6)
-  check('el botón tiene nombre para lectores de pantalla', ((await page.locator('.mascot-figure').getAttribute('aria-label')) || '').includes('Chispa'))
+  check('la mascota se ve en la esquina de abajo a la derecha, entera y sin tapar el estuche', inside(mb, 1280, 800, 4) && mb.x > cs.x + cs.width && mb.width >= 100, JSON.stringify({ mb, cs }))
+  const model = await page.evaluate(() => {
+    const faces = [...document.querySelectorAll('.m-tilt .fc')]
+    const bg = (sel) => getComputedStyle(document.querySelector(sel)).backgroundImage
+    return {
+      perspective: getComputedStyle(document.querySelector('.m-stage')).perspective,
+      style: getComputedStyle(document.querySelector('.m-tilt')).transformStyle,
+      faces: faces.length,
+      distinct: new Set(faces.map((f) => getComputedStyle(f).transform)).size,
+      hidden: faces.every((f) => getComputedStyle(f).backfaceVisibility === 'hidden'),
+      bodyFaces: document.querySelectorAll('.m-body .fc').length,
+      legs: document.querySelectorAll('.m-leg').length,
+      arms: document.querySelectorAll('.m-arm').length,
+      eyes: document.querySelectorAll('.m-eye').length,
+      tones: new Set([bg('.m-body .fc-f'), bg('.m-body .fc-t'), bg('.m-body .fc-l'), bg('.m-body .fc-r'), getComputedStyle(document.querySelector('.m-body .fc-b')).backgroundColor]).size,
+    }
+  })
+  check('es un modelo 3D de verdad: bloques hechos con caras en un escenario con perspectiva', model.perspective !== 'none' && model.style === 'preserve-3d' && model.faces >= 28 && model.distinct >= 5 && model.hidden, JSON.stringify(model))
+  check('…un cuerpo de cinco caras, dos bracitos, cuatro patas y dos ojos', model.bodyFaces === 5 && model.arms === 2 && model.legs === 4 && model.eyes === 2, JSON.stringify(model))
+  check('…con luz: cada cara del cuerpo tiene un tono distinto', model.tones === 5, JSON.stringify(model))
+  check('el botón tiene nombre para lectores de pantalla', ((await page.locator('.mascot-figure').getAttribute('aria-label')) || '').includes('Claude'))
 
   // 2 · Se presenta la primera vez, escribiendo el texto y moviendo la boca
   await waitBubble(page, 4500)
   check('la primera vez se presenta con una nube (y los lectores de pantalla la oyen entera)', (await page.locator('.mb .sr-only[role="status"]').count()) === 1 && (await page.locator('.mb-text[aria-hidden="true"]').count()) === 1)
   await page.waitForTimeout(200)
   const talking = (await mstate(page)).talking
-  check('mientras la nube «escribe», Chispa está hablando', talking)
+  check('mientras la nube «escribe», la mascota está hablando', talking)
   await page.waitForTimeout(3200)
   const st = await mstate(page)
-  check('el texto se completa y se presenta por su nombre', (st.bubble?.text || '').includes('Soy Chispa') && !st.talking, JSON.stringify(st))
+  check('el texto se completa y se presenta («la mascota de Claude»)', (st.bubble?.text || '').includes('mascota de Claude') && !st.talking, JSON.stringify(st))
   check('la nube cabe en la pantalla y su contorno se dibuja (nube con bultos)', inside(await bubble(page).boundingBox(), 1280, 800, 0) && ((await page.locator('.mb-cloud-body').first().getAttribute('d')) || '').split('C').length > 8)
   check('recuerda que ya se presentó', (await page.evaluate(() => window.__posits.store.getState().settings.mascotMet)) === true)
   await shot(page, 'mascota-pc-01-saludo')
@@ -87,7 +106,9 @@ async function desktop(browser, url) {
   await page.mouse.down()
   await page.mouse.move(900, 600, { steps: 8 })
   await page.mouse.move(400, 500, { steps: 10 })
-  check('mientras se arrastra, Chispa se agarra (sorprendida) y no se abre ninguna nube', (await m.getAttribute('data-dragging')) !== null && (await m.getAttribute('data-mood')) === 'surprised')
+  check('mientras se arrastra, la mascota se agarra (sorprendida) y no se abre ninguna nube', (await m.getAttribute('data-dragging')) !== null && (await m.getAttribute('data-mood')) === 'surprised')
+  const legsDangle = await page.evaluate(() => [...document.querySelectorAll('.m-leg')].map((l) => getComputedStyle(l).animationName))
+  check('…y en brazos las patitas cuelgan y patalean', legsDangle.length === 4 && legsDangle.every((n) => n.startsWith('m-dangle')), JSON.stringify(legsDangle))
   await page.mouse.up()
   await page.waitForTimeout(400)
   let moved = await m.boundingBox()
@@ -129,23 +150,24 @@ async function desktop(browser, url) {
   await page.waitForTimeout(450)
   let p = await pupils(page)
   let t = await tilt(page)
-  check('con el cursor a la izquierda, las pupilas y el cuerpo miran a la izquierda', p.x < -1 && t.ry < -5, JSON.stringify({ p, t }))
+  check('con el cursor a la izquierda, los ojos y el cuerpo miran a la izquierda', p.x < -0.3 && t.ry < -5, JSON.stringify({ p, t }))
   await shot(page, 'mascota-pc-02-mira-izquierda')
   await page.mouse.move(1270, 300)
   await page.waitForTimeout(450)
   p = await pupils(page)
   t = await tilt(page)
-  check('con el cursor a la derecha, miran a la derecha', p.x > 0 && t.ry > 0, JSON.stringify({ p, t }))
+  check('con el cursor a la derecha, miran a la derecha', p.x > 0.1 && t.ry > 0, JSON.stringify({ p, t }))
   await page.mouse.move(1200, 4)
   await page.waitForTimeout(450)
   p = await pupils(page)
   t = await tilt(page)
-  check('con el cursor arriba, miran arriba y el cuerpo se inclina hacia atrás', p.y < -0.5 && t.rx > 3, JSON.stringify({ p, t }))
-  check('las pupilas nunca se salen del ojo', (p.x / 2.6) ** 2 + (p.y / 3.5) ** 2 <= 1.02, JSON.stringify(p))
+  check('con el cursor arriba, miran arriba y el cuerpo se inclina hacia atrás', p.y < -0.3 && t.rx > 3, JSON.stringify({ p, t }))
+  check('los ojos nunca se salen de la cara', Math.abs(p.x) <= 1.26 && Math.abs(p.y) <= 1.01, JSON.stringify(p))
 
   // 4 · Parpadea
   await page.waitForFunction(() => document.querySelector('.mascot')?.hasAttribute('data-blink'), null, { timeout: 9000 })
-  check('parpadea sola de vez en cuando (los ojos se aplastan)', true)
+  const blinkShape = await eyeShape(page)
+  check('parpadea sola de vez en cuando (los ojos se aplastan como una rayita)', blinkShape.sv < 0.2, JSON.stringify(blinkShape))
   await page.waitForFunction(() => !document.querySelector('.mascot')?.hasAttribute('data-blink'), null, { timeout: 1000 })
 
   // 5 · Mira el cursor de escritura cuando escribes (con el ratón quieto)
@@ -162,7 +184,7 @@ async function desktop(browser, url) {
   const eyeC = await m.boundingBox()
   p = await pupils(page)
   const wantX = Math.sign(caret.x - (eyeC.x + eyeC.width / 2))
-  check('escribiendo, con el ratón quieto, mira al posit donde escribes', wantX !== 0 && Math.sign(p.x) === wantX && Math.abs(p.x) > 0.3, JSON.stringify({ p, caret, eyeC }))
+  check('escribiendo, con el ratón quieto, mira al posit donde escribes', wantX !== 0 && Math.sign(p.x) === wantX && Math.abs(p.x) > 0.15, JSON.stringify({ p, caret, eyeC }))
 
   // 6 · Comenta lo que escribes: al hacer una pausa, no mientras tecleas
   await fixRng(page, 0.05)
@@ -174,7 +196,8 @@ async function desktop(browser, url) {
   let s2 = await mstate(page)
   check('al hacer una pausa comenta lo escrito («urgente») con un botón para aceptar', s2.bubble && s2.bubble.chips.includes('Pintar de rojo'), JSON.stringify(s2))
   check('…y se le nota el ánimo (sorprendida por lo urgente)', ['surprised', 'idle'].includes(s2.mood))
-  check('…moviendo la boca mientras «escribe» (la boca alterna abierta y cerrada)', (await m.getAttribute('data-talking')) === '1' && (await display(page, '.m-mouth-grin')) === 'inline' && (await display(page, '.m-mouth-smile')) === 'inline')
+  const talkAnim = await page.evaluate(() => ({ rig: getComputedStyle(document.querySelector('.m-rig')).animationName, arm: getComputedStyle(document.querySelector('.m-arm-l')).animationName }))
+  check('…asintiendo y moviendo los bracitos mientras «escribe»', (await m.getAttribute('data-talking')) === '1' && talkAnim.rig === 'm-nod' && talkAnim.arm === 'm-flap-l', JSON.stringify(talkAnim))
   await shot(page, 'mascota-pc-03-sugerencia')
   const noteId = await page.evaluate(() => window.__posits.store.getState().editingId)
   await page.waitForTimeout(3300) // que termine de escribirse (los botones aparecen al final)
@@ -183,7 +206,7 @@ async function desktop(browser, url) {
   const after = await page.evaluate((id) => ({ color: window.__posits.store.getState().notes[id].color, editing: window.__posits.store.getState().editingId }), noteId)
   check('aceptar la sugerencia pinta el posit de rojo', after.color.toLowerCase() === '#ef6a62', JSON.stringify(after))
   check('…sin sacarte del posit (sigues escribiendo)', after.editing === noteId && (await page.evaluate(() => !!document.activeElement?.closest?.('.ProseMirror'))))
-  check('…y la nube se va y Chispa se alegra', (await bubble(page).count()) === 0 && (await mstate(page)).mood === 'happy')
+  check('…y la nube se va y la mascota se alegra', (await bubble(page).count()) === 0 && (await mstate(page)).mood === 'happy')
 
   // 7 · No es pesada: otro comentario enseguida no sale
   await page.keyboard.type(' y la factura')
@@ -210,7 +233,9 @@ async function desktop(browser, url) {
   const box1 = await page.locator('.note').first().locator('.task-check').first().boundingBox()
   await page.mouse.click(centerOf(box1).x, centerOf(box1).y)
   await page.waitForTimeout(250)
-  check('al marcar un pendiente, Chispa festeja (ojos contentos y brazos arriba)', (await mstate(page)).mood === 'happy' && (await display(page, '.m-eyes-happy')) === 'inline' && (await display(page, '.m-eyes-open')) === 'none')
+  await page.waitForTimeout(250)
+  const cheer = { eye: await eyeShape(page), arm: await armAngle(page, '.m-arm-l'), party: await display(page, '.m-party') }
+  check('al marcar un pendiente, la mascota festeja (ojos como «^ ^», brazos arriba y destellos)', (await mstate(page)).mood === 'happy' && cheer.eye.clip.includes('50% 6%') && cheer.arm > 20 && cheer.party === 'inline', JSON.stringify(cheer))
   await waitBubble(page, 2500)
   s2 = await mstate(page)
   check('…y dice cuántos van («Van 2 de 5»)', /2/.test(s2.bubble?.text || '') && /5/.test(s2.bubble?.text || ''), JSON.stringify(s2))
@@ -233,7 +258,7 @@ async function desktop(browser, url) {
   await page.keyboard.type('Entregar hoy urgente')
   check('callada no comenta lo que escribes', await noBubbleFor(page, 3400))
   await page.getByRole('button', { name: 'Listo' }).click()
-  check('callada sigue mirando: las pupilas se mueven con el cursor', (await page.mouse.move(60, 400), await page.waitForTimeout(400), (await pupils(page)).x < -1))
+  check('callada sigue mirando: las pupilas se mueven con el cursor', (await page.mouse.move(60, 400), await page.waitForTimeout(400), (await pupils(page)).x < -0.3))
   await m.locator('.mascot-figure').click()
   await waitBubble(page, 1500)
   await page.waitForTimeout(3300)
@@ -241,7 +266,7 @@ async function desktop(browser, url) {
   check('aunque esté callada, al tocarla contesta (y ofrece «Que hable»)', !!s2.bubble && s2.bubble.chips[0] === 'Que hable', JSON.stringify(s2))
   await page.getByRole('button', { name: 'Ocultar' }).click()
   await page.waitForTimeout(250)
-  check('«Ocultar» la esconde: solo asoma la chispa', (await mode(page)) === 'off' && (await page.locator('.mascot').count()) === 0 && (await page.locator('.mascot-peek').isVisible()))
+  check('«Ocultar» la esconde: solo asoma la mascotita', (await mode(page)) === 'off' && (await page.locator('.mascot').count()) === 0 && (await page.locator('.mascot-peek').isVisible()))
   await shot(page, 'mascota-pc-06-escondida')
   await waitSaved(page)
   await page.reload()
@@ -250,13 +275,14 @@ async function desktop(browser, url) {
   check('el ajuste se recuerda al recargar (sigue escondida)', (await mode(page)) === 'off' && (await page.locator('.mascot-peek').count()) === 1)
   await page.locator('.mascot-peek').click()
   await page.waitForTimeout(300)
-  check('tocar la chispa la vuelve a mostrar, despierta y avisando', (await mode(page)) === 'on' && (await page.locator('.mascot').count()) === 1 && ((await mstate(page)).bubble?.text || '').includes('Aquí estoy'))
+  check('tocar la mascotita la vuelve a mostrar, despierta y avisando', (await mode(page)) === 'on' && (await page.locator('.mascot').count()) === 1 && ((await mstate(page)).bubble?.text || '').includes('Aquí estoy'))
   await bubble(page).click()
 
   // 11 · Se duerme y se despierta
   await page.evaluate(() => window.__posits.mascotDebug.sleep(true))
   await page.waitForTimeout(500)
-  check('dormida: ojos cerrados, boca tranquila y las «zzz»', (await m.getAttribute('data-mood')) === 'sleep' && (await display(page, '.m-eyes-sleep')) === 'inline' && (await display(page, '.m-eyes-open')) === 'none' && (await display(page, '.m-zzz')) === 'inline')
+  const asleep = { eye: await eyeShape(page), zzz: await display(page, '.m-zzz') }
+  check('dormida: ojos cerrados (rayitas) y las «zzz»', (await m.getAttribute('data-mood')) === 'sleep' && asleep.eye.sy < 0.3 && asleep.zzz === 'inline', JSON.stringify(asleep))
   await shot(page, 'mascota-pc-07-dormida')
   check('dormida no habla', (await mstate(page)).bubble === null)
   await page.mouse.move(700, 350)
@@ -301,7 +327,7 @@ async function phone(browser, url) {
   let mb = await m.boundingBox()
   let dock = await page.locator('.dock').boundingBox()
   check('en el celular se apoya sobre el estuche sin tapar ningún botón', mb.y + mb.height <= dock.y + 3 && inside(mb, 390, 844, 2), JSON.stringify({ mb, dock }))
-  check('…y mide lo justo (≈ 78 px)', near(mb.width, 78, 2), `${mb.width}`)
+  check('…y mide lo justo (≈ 82 px)', near(mb.width, 82, 2), `${mb.width}`)
 
   // La presentación cabe y no estorba
   await waitBubble(page, 4500)
@@ -320,13 +346,13 @@ async function phone(browser, url) {
   await page.waitForTimeout(500)
   mb = await m.boundingBox()
   dock = await page.locator('.dock').boundingBox()
-  check('al aparecer la barra de acciones, Chispa sube de un saltito y sigue sin taparla', mb.y < y0 - 20 && mb.y + mb.height <= dock.y + 3, JSON.stringify({ y0, mb, dock }))
+  check('al aparecer la barra de acciones, la mascota sube de un saltito y sigue sin taparla', mb.y < y0 - 20 && mb.y + mb.height <= dock.y + 3, JSON.stringify({ y0, mb, dock }))
 
   // Mira con el dedo
   await tap(30, 300)
   await page.waitForTimeout(450)
   let p = await pupils(page)
-  check('mira hacia donde tocas con el dedo', p.x < -1, JSON.stringify(p))
+  check('mira hacia donde tocas con el dedo', p.x < -0.3, JSON.stringify(p))
 
   // La toco: contesta y los botones se pueden pulsar con el dedo
   const fb = await page.locator('.mascot-figure').boundingBox()
@@ -411,7 +437,7 @@ async function phone(browser, url) {
     const dk = await p2.locator('.dock').boundingBox()
     const tb = await p2.locator('.topbar').boundingBox()
     const overflow = await p2.evaluate(() => document.documentElement.scrollWidth > innerWidth)
-    check(`${w} px: Chispa y su nube caben, sin tapar el estuche ni la barra de arriba`, inside(mm, w, h, 2) && inside(bb, w, h, 2) && mm.y + mm.height <= dk.y + 3 && bb.y >= tb.y + tb.height - 1 && !overlaps(mm, dk) && !overflow, JSON.stringify({ mm, bb, dk, tb }))
+    check(`${w} px: la mascota y su nube caben, sin tapar el estuche ni la barra de arriba`, inside(mm, w, h, 2) && inside(bb, w, h, 2) && mm.y + mm.height <= dk.y + 3 && bb.y >= tb.y + tb.height - 1 && !overlaps(mm, dk) && !overflow, JSON.stringify({ mm, bb, dk, tb }))
     if (w === 320) await p2.screenshot({ path: require('./lib.cjs').OUT + '/mascota-cel-320.png' })
     await c2.close()
   }

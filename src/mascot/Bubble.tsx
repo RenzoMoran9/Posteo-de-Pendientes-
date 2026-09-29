@@ -13,7 +13,7 @@ const prefersReducedMotion = (): boolean =>
 
 /**
  * La nube de comentarios: un contorno de bultitos dibujado a mano alrededor del texto, que se va escribiendo
- * letra por letra (y Chispa mueve la boca). Tocarla termina de escribirla y, ya escrita, la cierra. Se queda
+ * letra por letra (y la mascota asiente y mueve los bracitos). Tocarla termina de escribirla y, ya escrita, la cierra. Se queda
  * mientras la miras (con el ratón encima o el dedo puesto) y luego se va sola.
  */
 export function Bubble({ bubble, side }: { bubble: BubbleData; side: 'left' | 'right' }) {

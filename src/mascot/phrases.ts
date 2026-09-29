@@ -1,7 +1,7 @@
 import type { Mood } from './mascotStore'
 
 /**
- * Lo que dice Chispa. Son frases escritas a mano (no hay IA ni nada que se envíe fuera): cada clave es un
+ * Lo que dice la mascota en sus nubes. Son frases escritas a mano (aquí no hay IA ni nada que se envíe fuera: la conversación de verdad con Claude está en src/chat): cada clave es un
  * tema o un suceso y tiene varias versiones para que no se repita. `{n}`, `{done}`, `{total}` y `{u}`
  * se reemplazan con números reales. Sin emojis: se ven distinto en cada aparato.
  */
@@ -128,7 +128,7 @@ export const PHRASES = {
   },
   welcome: {
     mood: 'happy',
-    lines: ['¡Hola! Soy Chispa. Miro lo que escribes y te doy una mano. Tócame cuando quieras.'],
+    lines: ['¡Hola! Soy la mascota de Claude. Miro lo que escribes y te doy una mano. Tócame cuando quieras.'],
   },
   wake: { mood: 'surprised', lines: ['¡Uy! Me dormí un ratito. ¿Seguimos?', 'Ya desperté. ¿Qué toca ahora?'] },
   nudge: {

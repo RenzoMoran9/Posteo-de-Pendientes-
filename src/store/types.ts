@@ -54,7 +54,7 @@ export interface Sticker {
   updatedAt: number
 }
 
-/** Chispa, la mascota: `on` habla y mira, `quiet` solo mira (no habla salvo que le toques), `off` está escondida. */
+/** La mascota de Claude: `on` habla y mira, `quiet` solo mira (no habla salvo que le toques), `off` está escondida. */
 export type MascotMode = 'on' | 'quiet' | 'off'
 
 /** Preferencias de ESTE dispositivo (no se sincronizarán). */

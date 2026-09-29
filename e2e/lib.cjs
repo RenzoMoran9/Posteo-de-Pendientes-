@@ -40,7 +40,7 @@ const getState = (page) =>
 
 /**
  * Abre la app en un contexto nuevo, espera al tablero listo y a que termine el fundido de entrada.
- * Por defecto la mascota queda oculta (y sin siquiera su chispa): las pruebas de tablero, íconos y letras miden y tocan
+ * Por defecto la mascota queda oculta (y sin siquiera su mascotita de escondida): las pruebas de tablero, íconos y letras miden y tocan
  * el tablero, y ella se prueba aparte en e2e/mascot.cjs (que pasa `hideMascot = false`).
  */
 async function open(browser, url, opts, query = 'debug&mascot=off', hideMascot = true) {
