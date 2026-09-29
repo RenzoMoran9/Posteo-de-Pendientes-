@@ -1,13 +1,16 @@
 import { createStore, useStore as useZustand } from 'zustand'
 import type { JSONContent } from '@tiptap/core'
-import { GRID, findFreeSpot, type Rect } from '../lib/geometry'
+import { GRID, clamp, findFreeSpot, type Rect } from '../lib/geometry'
 import { DEFAULT_COLOR, PAPER_COLORS } from '../lib/palette'
+import { seeded } from '../lib/seed'
 import { uid } from '../lib/uid'
-import { attachPersistence, loadPersisted } from './persistence'
-import type { Board, Note, PersistedState, SaveStatus, View } from './types'
+import { MAX_RECENT_ICONS, attachPersistence, loadPersisted } from './persistence'
+import type { Board, Note, PersistedState, SaveStatus, Sticker, View } from './types'
 
 export const NOTE_DEFAULTS = { w: 240, h: 216 } as const
 export const NOTE_LIMITS = { minW: 144, minH: 120, maxW: 960, maxH: 1600 } as const
+export const STICKER_DEFAULTS = { size: 56 } as const
+export const STICKER_LIMITS = { min: 24, max: 320 } as const
 
 export interface Toast {
   id: number
@@ -18,9 +21,15 @@ export interface Toast {
   duration?: number
 }
 
+/** Panel de íconos: `board` pega en el tablero (o en el posit elegido); `text` mete el ícono en el texto de un posit. */
+export type IconPanelState = { mode: 'board' } | { mode: 'text'; noteId: string } | null
+
 interface UIState {
   selectedId: string | null
+  /** Ícono seleccionado (excluyente con `selectedId`). */
+  selectedStickerId: string | null
   editingId: string | null
+  iconPanel: IconPanelState
   toast: Toast | null
   saveStatus: SaveStatus
 }
@@ -43,16 +52,39 @@ export interface AddNoteOptions {
   avoid?: Rect[]
 }
 
+export interface AddStickerOptions {
+  icon: string
+  /** Posit al que se pega (entonces x e y son relativos a su esquina); sin él, queda suelto en la hoja. */
+  noteId?: string | null
+  x?: number
+  y?: number
+  size?: number
+  tilt?: number
+}
+
 interface Actions {
   addNote(opts?: AddNoteOptions): string
-  patchNote(id: string, patch: Partial<Pick<Note, 'x' | 'y' | 'w' | 'h' | 'color'>>): void
+  patchNote(id: string, patch: Partial<Pick<Note, 'x' | 'y' | 'w' | 'h' | 'color' | 'font'>>): void
   setDoc(id: string, doc: JSONContent): void
   deleteNote(id: string): void
-  restoreNote(note: Note): void
+  restoreNote(note: Note, stickers?: Sticker[]): void
   duplicateNote(id: string): string | null
   select(id: string | null): void
   startEditing(id: string): void
   stopEditing(id?: string): void
+
+  addSticker(opts: AddStickerOptions): string
+  patchSticker(id: string, patch: Partial<Pick<Sticker, 'x' | 'y' | 'size' | 'tilt'>>): void
+  /** Al soltar un ícono: lo deja suelto o pegado a un posit, con sus coordenadas ya convertidas, y lo trae al frente. */
+  placeSticker(id: string, target: { noteId: string | null; x: number; y: number }): void
+  deleteSticker(id: string): void
+  restoreStickers(list: Sticker[]): void
+  duplicateSticker(id: string): string | null
+  selectSticker(id: string | null): void
+  openIcons(target: IconPanelState): void
+  closeIcons(): void
+  rememberIcon(icon: string): void
+
   /** "Toma un marcador": color para los posits nuevos y para el posit seleccionado. */
   pickColor(hex: string): void
   toggleMagnet(): void
@@ -88,6 +120,7 @@ export const taskDoc = (title: string, items: Array<[string, boolean]>): JSONCon
 export function createDefaultState(now = Date.now()): PersistedState {
   const boardId = uid()
   const noteId = uid()
+  const stickerId = uid()
   const board: Board = { id: boardId, name: 'Mi tablero', createdAt: now, updatedAt: now }
   const welcome: Note = {
     id: noteId,
@@ -103,7 +136,22 @@ export function createDefaultState(now = Date.now()): PersistedState {
       ['Marca una casilla: se tacha como con lápiz', true],
       ['Arrástralo desde la cinta', false],
       ['Cambia el color con los marcadores', false],
+      ['Pega íconos con el botón de la hojita', false],
     ]),
+    createdAt: now,
+    updatedAt: now,
+  }
+  // Un ícono de ejemplo pegado en la esquina del posit de bienvenida.
+  const sparkle: Sticker = {
+    id: stickerId,
+    boardId,
+    icon: 'brillos',
+    noteId,
+    x: welcome.w - 46,
+    y: -18,
+    size: STICKER_DEFAULTS.size,
+    tilt: 9,
+    z: 2,
     createdAt: now,
     updatedAt: now,
   }
@@ -113,14 +161,19 @@ export function createDefaultState(now = Date.now()): PersistedState {
     boardOrder: [boardId],
     activeBoardId: boardId,
     notes: { [noteId]: welcome },
-    nextZ: 2,
+    stickers: { [stickerId]: sparkle },
+    nextZ: 3,
     views: {},
-    settings: { magnet: true, defaultColor: DEFAULT_COLOR },
+    settings: { magnet: true, defaultColor: DEFAULT_COLOR, recentIcons: [] },
   }
 }
 
 const notesOf = (s: PersistedState): Note[] =>
   Object.values(s.notes).filter((n) => n.boardId === s.activeBoardId)
+
+/** Íconos pegados a un posit. */
+export const stickersOfNote = (s: PersistedState, noteId: string): Sticker[] =>
+  Object.values(s.stickers).filter((st) => st.noteId === noteId)
 
 let toastSeq = 0
 
@@ -128,7 +181,9 @@ export function createPositsStore(initial: PersistedState) {
   return createStore<Store>()((set, get) => ({
     ...initial,
     selectedId: null,
+    selectedStickerId: null,
     editingId: null,
+    iconPanel: null,
     toast: null,
     saveStatus: 'saved',
 
@@ -164,6 +219,7 @@ export function createPositsStore(initial: PersistedState) {
         notes: { ...s.notes, [note.id]: note },
         nextZ: s.nextZ + 1,
         selectedId: note.id,
+        selectedStickerId: null,
         editingId: opts.edit ? note.id : null,
       })
       return note.id
@@ -188,30 +244,45 @@ export function createPositsStore(initial: PersistedState) {
     deleteNote(id) {
       const note = get().notes[id]
       if (!note) return
+      const attached = stickersOfNote(get(), id)
       set((s) => {
         const notes = { ...s.notes }
         delete notes[id]
+        const stickers = { ...s.stickers }
+        for (const st of attached) delete stickers[st.id]
         return {
           notes,
+          stickers,
           selectedId: s.selectedId === id ? null : s.selectedId,
+          selectedStickerId: s.selectedStickerId && attached.some((st) => st.id === s.selectedStickerId) ? null : s.selectedStickerId,
           editingId: s.editingId === id ? null : s.editingId,
         }
       })
       get().showToast({
         message: 'Posit borrado',
         actionLabel: 'Deshacer',
-        onAction: () => get().restoreNote(note),
+        onAction: () => get().restoreNote(note, attached),
       })
     },
 
-    restoreNote(note) {
-      set((s) => ({
-        notes: { ...s.notes, [note.id]: { ...note, updatedAt: Date.now() } },
-        nextZ: Math.max(s.nextZ, note.z + 1),
-        selectedId: note.id,
-        editingId: null,
-        toast: null,
-      }))
+    restoreNote(note, stickers = []) {
+      set((s) => {
+        const restored = { ...s.stickers }
+        let nextZ = Math.max(s.nextZ, note.z + 1)
+        for (const st of stickers) {
+          restored[st.id] = { ...st, updatedAt: Date.now() }
+          nextZ = Math.max(nextZ, st.z + 1)
+        }
+        return {
+          notes: { ...s.notes, [note.id]: { ...note, updatedAt: Date.now() } },
+          stickers: restored,
+          nextZ,
+          selectedId: note.id,
+          selectedStickerId: null,
+          editingId: null,
+          toast: null,
+        }
+      })
     },
 
     duplicateNote(id) {
@@ -229,18 +300,32 @@ export function createPositsStore(initial: PersistedState) {
         createdAt: now,
         updatedAt: now,
       }
-      set({ notes: { ...s.notes, [copy.id]: copy }, nextZ: s.nextZ + 1, selectedId: copy.id, editingId: null })
+      const stickers = { ...s.stickers }
+      let nextZ = s.nextZ + 1
+      for (const st of stickersOfNote(s, id)) {
+        const twin: Sticker = { ...st, id: uid(), noteId: copy.id, z: nextZ++, createdAt: now, updatedAt: now }
+        stickers[twin.id] = twin
+      }
+      set({
+        notes: { ...s.notes, [copy.id]: copy },
+        stickers,
+        nextZ,
+        selectedId: copy.id,
+        selectedStickerId: null,
+        editingId: null,
+      })
       return copy.id
     },
 
     select(id) {
       set((s) => {
-        if (id === null) return { selectedId: null, editingId: null }
+        if (id === null) return { selectedId: null, selectedStickerId: null, editingId: null }
         const n = s.notes[id]
         if (!n) return s
         const onTop = n.z === s.nextZ - 1
         return {
           selectedId: id,
+          selectedStickerId: null,
           editingId: s.editingId === id ? id : null,
           ...(onTop ? {} : { notes: { ...s.notes, [id]: { ...n, z: s.nextZ } }, nextZ: s.nextZ + 1 }),
         }
@@ -254,6 +339,7 @@ export function createPositsStore(initial: PersistedState) {
         const onTop = n.z === s.nextZ - 1
         return {
           selectedId: id,
+          selectedStickerId: null,
           editingId: id,
           ...(onTop ? {} : { notes: { ...s.notes, [id]: { ...n, z: s.nextZ } }, nextZ: s.nextZ + 1 }),
         }
@@ -263,6 +349,139 @@ export function createPositsStore(initial: PersistedState) {
     stopEditing(id) {
       if (id && get().editingId !== id) return
       set({ editingId: null })
+    },
+
+    addSticker(opts) {
+      const s = get()
+      const note = opts.noteId ? s.notes[opts.noteId] : undefined
+      const id = uid()
+      const now = Date.now()
+      const sticker: Sticker = {
+        id,
+        boardId: note ? note.boardId : s.activeBoardId,
+        icon: opts.icon,
+        noteId: note ? note.id : null,
+        x: opts.x ?? 0,
+        y: opts.y ?? 0,
+        size: clamp(opts.size ?? STICKER_DEFAULTS.size, STICKER_LIMITS.min, STICKER_LIMITS.max),
+        tilt: opts.tilt ?? Math.round((seeded(id, 5) - 0.5) * 120) / 10,
+        z: s.nextZ,
+        createdAt: now,
+        updatedAt: now,
+      }
+      set({
+        stickers: { ...s.stickers, [id]: sticker },
+        nextZ: s.nextZ + 1,
+        selectedStickerId: id,
+        selectedId: null,
+        editingId: null,
+      })
+      return id
+    },
+
+    patchSticker(id, patch) {
+      set((s) => {
+        const st = s.stickers[id]
+        if (!st) return s
+        const next = { ...st, ...patch, updatedAt: Date.now() }
+        next.size = clamp(next.size, STICKER_LIMITS.min, STICKER_LIMITS.max)
+        return { stickers: { ...s.stickers, [id]: next } }
+      })
+    },
+
+    placeSticker(id, target) {
+      set((s) => {
+        const st = s.stickers[id]
+        if (!st) return s
+        const noteId = target.noteId && s.notes[target.noteId] ? target.noteId : null
+        const next: Sticker = { ...st, noteId, x: target.x, y: target.y, z: s.nextZ, updatedAt: Date.now() }
+        return { stickers: { ...s.stickers, [id]: next }, nextZ: s.nextZ + 1 }
+      })
+    },
+
+    deleteSticker(id) {
+      const sticker = get().stickers[id]
+      if (!sticker) return
+      set((s) => {
+        const stickers = { ...s.stickers }
+        delete stickers[id]
+        return { stickers, selectedStickerId: s.selectedStickerId === id ? null : s.selectedStickerId }
+      })
+      get().showToast({
+        message: 'Ícono borrado',
+        actionLabel: 'Deshacer',
+        onAction: () => get().restoreStickers([sticker]),
+      })
+    },
+
+    restoreStickers(list) {
+      set((s) => {
+        const stickers = { ...s.stickers }
+        let nextZ = s.nextZ
+        let last: string | null = null
+        for (const st of list) {
+          if (st.noteId && !s.notes[st.noteId]) continue
+          stickers[st.id] = { ...st, updatedAt: Date.now() }
+          nextZ = Math.max(nextZ, st.z + 1)
+          last = st.id
+        }
+        return { stickers, nextZ, toast: null, ...(last ? { selectedStickerId: last, selectedId: null, editingId: null } : {}) }
+      })
+    },
+
+    duplicateSticker(id) {
+      const s = get()
+      const src = s.stickers[id]
+      if (!src) return null
+      const now = Date.now()
+      const copy: Sticker = { ...src, id: uid(), x: src.x + 14, y: src.y + 14, z: s.nextZ, createdAt: now, updatedAt: now }
+      set({
+        stickers: { ...s.stickers, [copy.id]: copy },
+        nextZ: s.nextZ + 1,
+        selectedStickerId: copy.id,
+        selectedId: null,
+        editingId: null,
+      })
+      return copy.id
+    },
+
+    selectSticker(id) {
+      set((s) => {
+        if (id === null) return { selectedStickerId: null }
+        const st = s.stickers[id]
+        if (!st) return s
+        let nextZ = s.nextZ
+        let stickers = s.stickers
+        let notes = s.notes
+        // Al frente: el ícono y, si está pegado, también su posit (el ícono se ve dentro de él).
+        if (st.z !== nextZ - 1) {
+          stickers = { ...stickers, [id]: { ...st, z: nextZ } }
+          nextZ += 1
+        }
+        const parent = st.noteId ? s.notes[st.noteId] : undefined
+        if (parent && parent.z !== nextZ - 1) {
+          notes = { ...notes, [parent.id]: { ...parent, z: nextZ } }
+          nextZ += 1
+        }
+        return { selectedStickerId: id, selectedId: null, editingId: null, stickers, notes, nextZ }
+      })
+    },
+
+    openIcons(target) {
+      set({ iconPanel: target })
+    },
+
+    closeIcons() {
+      set({ iconPanel: null })
+    },
+
+    rememberIcon(icon) {
+      set((s) => ({
+        settings: {
+          ...s.settings,
+          recentIcons: [icon, ...s.settings.recentIcons.filter((i) => i !== icon)].slice(0, MAX_RECENT_ICONS),
+        },
+      }))
     },
 
     pickColor(hex) {
@@ -306,3 +525,9 @@ export const selectActiveNoteIds = (s: Store): string[] =>
   Object.values(s.notes)
     .filter((n) => n.boardId === s.activeBoardId)
     .map((n) => n.id)
+
+/** Íconos sueltos en la hoja del tablero activo (los pegados a un posit los dibuja el propio posit). */
+export const selectLooseStickerIds = (s: Store): string[] =>
+  Object.values(s.stickers)
+    .filter((st) => st.boardId === s.activeBoardId && st.noteId === null)
+    .map((st) => st.id)

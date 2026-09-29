@@ -1,20 +1,33 @@
 import { useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { selectActiveNoteIds, store, useStore } from '../store/store'
+import { fontById } from '../lib/fonts'
+import { selectActiveNoteIds, selectLooseStickerIds, store, useStore } from '../store/store'
 import { fitAll } from './actions'
 import { attachGestures } from './gestures'
 import { NoteView } from './NoteView'
+import { StickerView } from './StickerView'
 import { view } from './view'
 
-/** Espera a las fuentes de la app (con un tope de 1,5 s por si la conexión es mala). */
+/**
+ * Espera a las letras de la app y a las que usan los posits de este tablero (con un tope de 1,5 s por si la
+ * conexión es mala). Sin esto los posits cambiarían de alto al terminar de cargar y quedarían descentrados.
+ */
 function fontsReady(): Promise<void> {
   const fonts = document.fonts
   if (!fonts || typeof fonts.load !== 'function') return Promise.resolve()
-  const loaded = Promise.all([
+  const s = store.getState()
+  const used = new Set(
+    Object.values(s.notes)
+      .filter((n) => n.boardId === s.activeBoardId)
+      .map((n) => fontById(n.font)),
+  )
+  const loads = [
     fonts.load('22px "Kalam"'),
     fonts.load('700 18px "Kalam"'),
     fonts.load('20px "Permanent Marker"'),
-  ]).then(
+    ...[...used].map((f) => fonts.load(`22px ${f.stack}`)),
+  ]
+  const loaded = Promise.all(loads).then(
     () => undefined,
     () => undefined,
   )
@@ -24,6 +37,7 @@ function fontsReady(): Promise<void> {
 
 export function Board() {
   const ids = useStore(useShallow(selectActiveNoteIds))
+  const looseIds = useStore(useShallow(selectLooseStickerIds))
   const activeBoardId = useStore((s) => s.activeBoardId)
   const boardRef = useRef<HTMLDivElement>(null)
   const worldRef = useRef<HTMLDivElement>(null)
@@ -75,8 +89,11 @@ export function Board() {
         {ids.map((id) => (
           <NoteView key={id} id={id} />
         ))}
+        {looseIds.map((id) => (
+          <StickerView key={id} id={id} />
+        ))}
       </div>
-      {ids.length === 0 && (
+      {ids.length === 0 && looseIds.length === 0 && (
         <div className="empty-hint" aria-live="polite">
           <p className="empty-title">Tu tablero está vacío</p>
           <p className="empty-sub">

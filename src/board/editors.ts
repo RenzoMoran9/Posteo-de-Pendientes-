@@ -45,12 +45,27 @@ export function beginEditing(id: string, at?: { x: number; y: number }): void {
   ed.commands.focus('end')
 }
 
+/**
+ * Mete un ícono en el texto del posit, donde estaba el cursor (o al final si nunca se escribió ahí).
+ * Vuelve a poner el posit en modo escritura, porque el panel de íconos pudo haberle quitado el foco.
+ */
+export function insertIconInNote(id: string, icon: string): boolean {
+  const ed = editors.get(id)
+  if (!ed || ed.isDestroyed) return false
+  store.getState().startEditing(id)
+  ed.setEditable(true)
+  ed.chain().focus().insertContent({ type: 'inlineIcon', attrs: { icon } }).run()
+  return true
+}
+
 /** Cierra el teclado y deja el posit solo seleccionado. */
 export function endEditing(): void {
   const s = store.getState()
   const id = s.editingId
   if (id) editors.get(id)?.commands.blur()
   s.stopEditing()
+  // el panel de íconos "del texto" no tiene sentido sin posit en escritura
+  if (s.iconPanel?.mode === 'text') s.closeIcons()
   const a = document.activeElement
   if (a instanceof HTMLElement && a !== document.body) a.blur()
 }

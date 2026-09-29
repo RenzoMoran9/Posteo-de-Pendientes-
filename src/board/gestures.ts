@@ -1,5 +1,5 @@
 import { GRID, MAX_ZOOM, MIN_ZOOM, clamp, magnet, type View } from '../lib/geometry'
-import { NOTE_LIMITS, store } from '../store/store'
+import { NOTE_LIMITS, STICKER_LIMITS, store } from '../store/store'
 import { addNoteAtClient, persistViewSoon } from './actions'
 import { beginEditing, endEditing } from './editors'
 import { view } from './view'
@@ -29,9 +29,38 @@ type NotePress = {
   y: number
 }
 
+/** Un ícono pegado (suelto o sobre un posit). x/y están en el mismo marco que las coordenadas guardadas. */
+type StickerPress = {
+  kind: 'sticker'
+  pid: number
+  type: string
+  sx: number
+  sy: number
+  moved: boolean
+  id: string
+  el: HTMLElement
+  noteId: string | null
+  tilt: number
+  x0: number
+  y0: number
+  x: number
+  y: number
+}
+
 type Press =
   | { kind: 'pan'; pid: number; type: string; sx: number; sy: number; lx: number; ly: number; moved: boolean }
   | NotePress
+  | StickerPress
+  | {
+      kind: 'sticker-resize'
+      pid: number
+      sx: number
+      sy: number
+      id: string
+      el: HTMLElement
+      s0: number
+      s: number
+    }
   | {
       kind: 'resize'
       pid: number
@@ -56,6 +85,7 @@ const DOUBLE_MS = 340
  *  - dos dedos → zoom y desplazamiento a la vez
  *  - sobre un posit → tocar selecciona, tocar de nuevo escribe, arrastrar lo mueve
  *  - sobre un tirador → cambia el tamaño
+ *  - sobre un ícono pegado → tocar lo selecciona, arrastrar lo mueve (se pega al posit sobre el que se suelte)
  *  - rueda: desplaza; Ctrl/⌘ + rueda (o pellizco en el trackpad): zoom
  */
 export function attachGestures(board: HTMLElement, world: HTMLElement): () => void {
@@ -98,10 +128,34 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
     }
   }
 
+  /** Un ícono pegado (tiene prioridad sobre el posit que hay debajo). */
+  function stickerHit(target: EventTarget | null) {
+    const el = target instanceof Element ? target : null
+    const stickerEl = el?.closest<HTMLElement>('[data-sticker-id]') ?? null
+    if (!el || !stickerEl) return null
+    return { el: stickerEl, id: stickerEl.dataset.stickerId as string, resize: !!el.closest('[data-resize-sticker]') }
+  }
+
   function selectNote(id: string) {
     const s = store.getState()
     if (s.editingId && s.editingId !== id) endEditing()
     store.getState().select(id)
+  }
+
+  function selectSticker(id: string) {
+    if (store.getState().editingId) endEditing()
+    store.getState().selectSticker(id)
+  }
+
+  /** El posit que queda bajo el punto (el de más arriba), sin contar el ícono que se arrastra. */
+  function noteAt(cx: number, cy: number, ignore: HTMLElement): string | null {
+    for (const el of document.elementsFromPoint(cx, cy)) {
+      if (ignore.contains(el)) continue
+      if (!board.contains(el)) return null
+      const noteEl = el.closest<HTMLElement>('[data-note-id]')
+      if (noteEl) return noteEl.dataset.noteId ?? null
+    }
+    return null
   }
 
   // ───────────────────────── pinch ─────────────────────────
@@ -187,6 +241,36 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
     capture(e.pointerId)
   }
 
+  function beginStickerPress(e: PointerEvent, el: HTMLElement, id: string) {
+    const st = store.getState().stickers[id]
+    if (!st) return
+    press = {
+      kind: 'sticker',
+      pid: e.pointerId,
+      type: e.pointerType,
+      sx: e.clientX,
+      sy: e.clientY,
+      moved: false,
+      id,
+      el,
+      noteId: st.noteId,
+      tilt: st.tilt,
+      x0: st.x,
+      y0: st.y,
+      x: st.x,
+      y: st.y,
+    }
+    capture(e.pointerId)
+  }
+
+  function beginStickerResize(e: PointerEvent, el: HTMLElement, id: string) {
+    const st = store.getState().stickers[id]
+    if (!st) return
+    press = { kind: 'sticker-resize', pid: e.pointerId, sx: e.clientX, sy: e.clientY, id, el, s0: st.size, s: st.size }
+    setGesturing(true)
+    capture(e.pointerId)
+  }
+
   function beginResize(e: PointerEvent, el: HTMLElement, id: string, axis: Axis) {
     const r = el.getBoundingClientRect()
     const z = view.get().z
@@ -212,7 +296,8 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
   function onPointerDown(e: PointerEvent) {
     if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1) return
 
-    const hit = hitInfo(e.target)
+    const sticker = stickerHit(e.target)
+    const hit = sticker ? null : hitInfo(e.target)
     const editingHere = hit ? store.getState().editingId === hit.id : false
     const native = !!hit && (hit.noDrag || (editingHere && hit.inText && !hit.inZone))
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, native })
@@ -229,7 +314,10 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
       return
     }
 
-    if (hit) {
+    if (sticker) {
+      if (sticker.resize) beginStickerResize(e, sticker.el, sticker.id)
+      else beginStickerPress(e, sticker.el, sticker.id)
+    } else if (hit) {
       if (hit.axis) beginResize(e, hit.noteEl, hit.id, hit.axis)
       else beginNotePress(e, hit.noteEl, hit.id, hit.inZone)
     } else {
@@ -290,6 +378,30 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
       pr.x = nx
       pr.y = ny
       pr.el.style.transform = `translate(${nx}px, ${ny}px)`
+      return
+    }
+
+    if (pr.kind === 'sticker') {
+      if (!pr.moved) {
+        if (Math.hypot(dx, dy) < slop(pr.type)) return
+        pr.moved = true
+        selectSticker(pr.id)
+        pr.el.setAttribute('data-dragging', '')
+        setGesturing(true)
+      }
+      // libre (sin imán): el ícono va exactamente donde lo lleva el dedo
+      pr.x = pr.x0 + dx / z
+      pr.y = pr.y0 + dy / z
+      pr.el.style.translate = `${pr.x}px ${pr.y}px`
+      return
+    }
+
+    if (pr.kind === 'sticker-resize') {
+      // el lado crece con el promedio del arrastre en horizontal y vertical (el ícono siempre es cuadrado)
+      const s = clamp(pr.s0 + (dx + dy) / 2 / z, STICKER_LIMITS.min, STICKER_LIMITS.max)
+      pr.s = s
+      pr.el.style.width = `${s}px`
+      pr.el.style.height = `${s}px`
       return
     }
 
@@ -373,8 +485,42 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
       return
     }
 
+    if (pr.kind === 'sticker') {
+      pr.el.removeAttribute('data-dragging')
+      setGesturing(false)
+      if (pr.moved) {
+        dropSticker(pr)
+        return
+      }
+      if (cancelled || !e) return
+      selectSticker(pr.id)
+      return
+    }
+
+    if (pr.kind === 'sticker-resize') {
+      setGesturing(false)
+      store.getState().patchSticker(pr.id, { size: pr.s })
+      return
+    }
+
     setGesturing(false)
     store.getState().patchNote(pr.id, { w: pr.w, h: pr.h })
+  }
+
+  /**
+   * Al soltar un ícono: si el centro cae sobre un posit, se le pega (y desde entonces va con él);
+   * si cae en la hoja, queda suelto. Las coordenadas se convierten al marco que corresponda.
+   */
+  function dropSticker(pr: StickerPress) {
+    const s = store.getState()
+    const box = pr.el.getBoundingClientRect()
+    const targetId = noteAt(box.left + box.width / 2, box.top + box.height / 2, pr.el)
+    const parent = pr.noteId ? s.notes[pr.noteId] : undefined
+    const wx = (parent ? parent.x : 0) + pr.x
+    const wy = (parent ? parent.y : 0) + pr.y
+    const target = targetId ? s.notes[targetId] : undefined
+    if (target) s.placeSticker(pr.id, { noteId: target.id, x: wx - target.x, y: wy - target.y })
+    else s.placeSticker(pr.id, { noteId: null, x: wx, y: wy })
   }
 
   function onWheel(e: WheelEvent) {

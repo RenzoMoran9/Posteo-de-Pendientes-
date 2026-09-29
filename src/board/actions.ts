@@ -1,5 +1,6 @@
-import { boundsOf, fitView, type Rect } from '../lib/geometry'
-import { NOTE_DEFAULTS, store } from '../store/store'
+import { boundsOf, findFreeSpot, fitView, type Rect } from '../lib/geometry'
+import { NOTE_DEFAULTS, STICKER_DEFAULTS, stickersOfNote, store } from '../store/store'
+import { insertIconInNote } from './editors'
 import { kbdProxy } from './kbd'
 import { view } from './view'
 
@@ -57,10 +58,73 @@ function measuredRects(): Rect[] {
     })
 }
 
-/** "Ver todo": encuadra todos los posits del tablero. */
+/** Rectángulos de los íconos sueltos del tablero activo. */
+function looseStickerRects(): Rect[] {
+  const s = store.getState()
+  return Object.values(s.stickers)
+    .filter((st) => st.boardId === s.activeBoardId && st.noteId === null)
+    .map((st) => ({ x: st.x, y: st.y, w: st.size, h: st.size }))
+}
+
+/**
+ * Pega un ícono desde el panel. Con un posit seleccionado (o un ícono suyo), va a su esquina superior derecha
+ * (y los siguientes a su izquierda, como pegatinas en fila); sin posit, cae suelto en la hoja, en el hueco libre
+ * más cercano al centro de lo que se ve. Después se arrastra a donde se quiera.
+ */
+export function addStickerFromPanel(icon: string): string {
+  const s = store.getState()
+  const size = STICKER_DEFAULTS.size
+  // «El posit de turno»: el seleccionado o, si hay un ícono pegado seleccionado, el posit al que pertenece
+  // (así se pueden pegar varios seguidos al mismo posit sin volver a seleccionarlo).
+  const sel = s.selectedStickerId ? s.stickers[s.selectedStickerId] : undefined
+  const note = s.selectedId ? s.notes[s.selectedId] : sel?.noteId ? s.notes[sel.noteId] : undefined
+
+  if (note) {
+    const step = size * 0.82
+    const perRow = Math.max(1, Math.floor((note.w + size * 0.28) / step))
+    const k = stickersOfNote(s, note.id).length
+    const x = note.w - size * 0.72 - (k % perRow) * step
+    const y = -size * 0.3 + Math.floor(k / perRow) * step
+    const id = s.addSticker({ icon, noteId: note.id, x, y, size })
+    view.ensureVisible({ x: note.x + x, y: note.y + y, w: size, h: size })
+    persistViewSoon()
+    return id
+  }
+
+  const c = view.visibleCenter()
+  const spot = findFreeSpot([...measuredRects(), ...looseStickerRects()], c.x - size / 2, c.y - size / 2, size, size, 12, 10)
+  const id = s.addSticker({ icon, x: spot.x, y: spot.y, size })
+  view.ensureVisible({ x: spot.x, y: spot.y, w: size, h: size })
+  persistViewSoon()
+  return id
+}
+
+/** Un toque en un ícono del panel: lo pega donde toca según cómo se abrió el panel (en el texto o en el tablero). */
+export function pickIcon(icon: string): void {
+  const s = store.getState()
+  const panel = s.iconPanel
+  s.rememberIcon(icon)
+  if (panel?.mode === 'text') insertIconInNote(panel.noteId, icon)
+  else addStickerFromPanel(icon)
+  store.getState().closeIcons()
+}
+
+/** Rectángulos (en el tablero) de todos los íconos del tablero activo: sueltos y pegados (los pegados pueden sobresalir del posit). */
+function allStickerRects(): Rect[] {
+  const s = store.getState()
+  return Object.values(s.stickers)
+    .filter((st) => st.boardId === s.activeBoardId)
+    .flatMap((st) => {
+      const parent = st.noteId ? s.notes[st.noteId] : undefined
+      if (st.noteId && !parent) return []
+      return [{ x: (parent ? parent.x : 0) + st.x, y: (parent ? parent.y : 0) + st.y, w: st.size, h: st.size }]
+    })
+}
+
+/** "Ver todo": encuadra todos los posits y todos los íconos (así ninguno queda tapado por las barras). */
 export function fitAll(animate = true): void {
   const r = view.rect()
-  const b = boundsOf(measuredRects())
+  const b = boundsOf([...measuredRects(), ...allStickerRects()])
   const ins = view.insets()
   let target
   if (b) {

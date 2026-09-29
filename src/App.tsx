@@ -5,6 +5,7 @@ import { useChromeInsets } from './hooks/useChromeInsets'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useVisualViewport } from './hooks/useVisualViewport'
 import { ContextBar } from './ui/ContextBar'
+import { IconPanel } from './ui/IconPanel'
 import { MarkerCase } from './ui/MarkerCase'
 import { SvgDefs } from './ui/SvgDefs'
 import { Toast } from './ui/Toast'
@@ -31,6 +32,7 @@ export default function App() {
         <Toast />
         <ContextBar />
         <MarkerCase />
+        <IconPanel />
       </div>
       <input ref={proxyRef} className="kbd-proxy" aria-hidden="true" tabIndex={-1} autoComplete="off" />
     </div>

@@ -1,24 +1,107 @@
+import { useEffect, useState } from 'react'
 import type { SyntheticEvent } from 'react'
-import { Check, Copy, List, ListChecks, Trash } from 'lucide-react'
+import { Check, Copy, List, ListChecks, Minus, Plus, Smile, Trash, Type } from 'lucide-react'
 import { endEditing } from '../board/editors'
 import { toggleBullets, toggleTasks } from '../board/listCommands'
 import { useEditorOf, useListFlags } from '../hooks/useActiveEditor'
-import { store, useStore } from '../store/store'
+import { STICKER_LIMITS, store, useStore } from '../store/store'
+import { FormatPanel } from './FormatPanel'
 
 /** No robar el foco al editor: así el teclado del celular no se cierra al tocar estos botones. */
 const keepFocus = (e: SyntheticEvent) => e.preventDefault()
 
+/** Cambia el tamaño de un ícono desde su centro (más cómodo con el dedo que el tirador). */
+function resizeSticker(id: string, factor: number): void {
+  const s = store.getState()
+  const st = s.stickers[id]
+  if (!st) return
+  const size = Math.min(STICKER_LIMITS.max, Math.max(STICKER_LIMITS.min, Math.round(st.size * factor)))
+  const grow = size - st.size
+  s.patchSticker(id, { size, x: st.x - grow / 2, y: st.y - grow / 2 })
+}
+
 /**
- * Acciones del posit seleccionado (encima del estuche).
- * Al escribir, la barra pasa a ser la de edición: «Listo» + viñetas + pendientes + borrar.
+ * Acciones de lo seleccionado (encima del estuche).
+ * Posit: Duplicar · Letra · Borrar. Escribiendo: «Listo» + viñetas + pendientes + ícono + letra/estilo + borrar.
+ * Ícono pegado: Duplicar · más pequeño · más grande · Borrar.
  */
 export function ContextBar() {
   const selectedId = useStore((s) => s.selectedId)
+  const stickerId = useStore((s) => s.selectedStickerId)
   const editingId = useStore((s) => s.editingId)
+  const textPanel = useStore((s) => s.iconPanel?.mode === 'text')
   const editor = useEditorOf(editingId)
   const { bullets, tasks } = useListFlags(editor)
-  if (!selectedId) return null
+  const [formatOpen, setFormatOpen] = useState(false)
   const editing = editingId !== null
+
+  // La letra y el estilo se cierran al tocar fuera, al terminar de escribir o al cambiar de selección.
+  useEffect(() => {
+    if (!formatOpen) return
+    const onDown = (e: PointerEvent) => {
+      if (!(e.target as Element | null)?.closest('[data-format-panel], [data-format-btn]')) setFormatOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        setFormatOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', onDown)
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('keydown', onKey, true)
+    }
+  }, [formatOpen])
+  useEffect(() => setFormatOpen(false), [editing, selectedId, stickerId])
+
+  const formatBtn = (
+    <button
+      type="button"
+      className="ctx-btn"
+      aria-pressed={formatOpen}
+      aria-label="Letra y estilo del texto"
+      title="Letra y estilo"
+      data-format-btn
+      onClick={() => {
+        store.getState().closeIcons()
+        setFormatOpen((o) => !o)
+      }}
+    >
+      <Type aria-hidden="true" />
+      <span className="ctx-label">Letra</span>
+    </button>
+  )
+
+  if (stickerId) {
+    return (
+      <div
+        className="ctx hand-box is-sticker"
+        role="toolbar"
+        aria-label="Acciones del ícono"
+        onMouseDown={keepFocus}
+        onPointerDown={keepFocus}
+      >
+        <button type="button" className="ctx-btn" onClick={() => store.getState().duplicateSticker(stickerId)}>
+          <Copy aria-hidden="true" />
+          <span className="ctx-label">Duplicar</span>
+        </button>
+        <button type="button" className="ctx-btn" aria-label="Ícono más pequeño" title="Más pequeño (−)" onClick={() => resizeSticker(stickerId, 1 / 1.25)}>
+          <Minus aria-hidden="true" />
+        </button>
+        <button type="button" className="ctx-btn" aria-label="Ícono más grande" title="Más grande (+)" onClick={() => resizeSticker(stickerId, 1.25)}>
+          <Plus aria-hidden="true" />
+        </button>
+        <button type="button" className="ctx-btn is-danger" onClick={() => store.getState().deleteSticker(stickerId)}>
+          <Trash aria-hidden="true" />
+          <span className="ctx-label">Borrar</span>
+        </button>
+      </div>
+    )
+  }
+
+  if (!selectedId) return null
 
   return (
     <div
@@ -58,7 +141,24 @@ export function ContextBar() {
           </button>
           <button
             type="button"
-            className="ctx-btn is-danger"
+            className="ctx-btn"
+            aria-pressed={textPanel}
+            aria-label="Poner un ícono en el texto"
+            title="Ícono en el texto"
+            data-icon-panel
+            onClick={() => {
+              const s = store.getState()
+              if (s.iconPanel?.mode === 'text') s.closeIcons()
+              else s.openIcons({ mode: 'text', noteId: selectedId })
+            }}
+          >
+            <Smile aria-hidden="true" />
+            <span className="ctx-label">Ícono</span>
+          </button>
+          {formatBtn}
+          <button
+            type="button"
+            className="ctx-btn is-danger ctx-trash"
             aria-label="Borrar posit"
             title="Borrar posit"
             onClick={() => store.getState().deleteNote(selectedId)}
@@ -72,12 +172,14 @@ export function ContextBar() {
             <Copy aria-hidden="true" />
             <span className="ctx-label">Duplicar</span>
           </button>
+          {formatBtn}
           <button type="button" className="ctx-btn is-danger" onClick={() => store.getState().deleteNote(selectedId)}>
             <Trash aria-hidden="true" />
             <span className="ctx-label">Borrar</span>
           </button>
         </>
       )}
+      {formatOpen && <FormatPanel noteId={selectedId} editor={editor} editing={editing} />}
     </div>
   )
 }

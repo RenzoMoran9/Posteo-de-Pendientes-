@@ -1,0 +1,418 @@
+/* ─────────── Íconos dibujados a mano ───────────
+   Los dibujos vienen ya "temblados" (src/icons/data.generated.ts); aquí solo se decide el grosor y el color
+   de la tinta según dónde se peguen. Cambiar --icon-ink / --icon-line en un contenedor basta. */
+
+.ic-box {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ic {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  --ic-ink: var(--icon-ink, var(--ink));
+  --ic-w: var(--icon-line, 2.5);
+}
+
+.ic .f-ink {
+  fill: var(--ic-ink);
+}
+
+.ic .s {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ic .s-i {
+  stroke: var(--ic-ink);
+  stroke-width: var(--ic-w);
+}
+
+.ic .s-t {
+  stroke: var(--ic-ink);
+  stroke-width: calc(var(--ic-w) * 0.62);
+}
+
+.ic .s-k {
+  stroke: var(--ic-ink);
+  stroke-width: calc(var(--ic-w) * 1.5);
+}
+
+.ic .s-w {
+  stroke: #fff;
+  stroke-opacity: 0.8;
+  stroke-width: var(--ic-w);
+}
+
+.ic .s-W {
+  stroke: #fff;
+  stroke-width: calc(var(--ic-w) * 1.6);
+}
+
+.ic .s-c {
+  stroke-width: var(--ic-w);
+}
+
+/* ─────────── Ícono pegado (suelto en la hoja o sobre un posit) ─────────── */
+
+.note-stickers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.25);
+}
+
+/* Mientras se arrastra el posit, sus íconos se inclinan igual que el papel (ver note.css). */
+.note[data-dragging] .note-stickers {
+  transform: scale(1.03) rotate(-0.8deg);
+}
+
+.sticker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  touch-action: none;
+  cursor: grab;
+  --icon-ink: var(--note-ink, var(--ink));
+  filter: drop-shadow(0 1px 0 rgb(40 28 8 / 0.22)) drop-shadow(0 4px 3px rgb(60 40 10 / 0.16));
+  transition:
+    scale 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.4),
+    filter 0.16s ease;
+}
+
+.note-stickers .sticker {
+  pointer-events: auto;
+}
+
+/* Zona de toque más grande que el dibujo (se agranda al alejar el zoom). */
+.sticker::before {
+  content: '';
+  position: absolute;
+  inset: calc(-9px * var(--iz, 1));
+}
+
+.sticker[data-dragging] {
+  cursor: grabbing;
+  scale: 1.08;
+  filter: drop-shadow(0 2px 0 rgb(40 28 8 / 0.2)) drop-shadow(0 12px 9px rgb(60 40 10 / 0.24));
+}
+
+.sticker-ring {
+  position: absolute;
+  inset: calc(-7px * var(--iz, 1));
+  border: calc(2.5px * var(--iz, 1)) dashed var(--steel-deep);
+  border-radius: calc(8px * var(--iz, 1));
+  opacity: 0.85;
+  pointer-events: none;
+  filter: url(#rough-soft);
+}
+
+.sticker-handle {
+  position: absolute;
+  right: calc(-24px * var(--iz, 1));
+  bottom: calc(-24px * var(--iz, 1));
+  width: calc(44px * var(--iz, 1));
+  height: calc(44px * var(--iz, 1));
+  touch-action: none;
+  cursor: nwse-resize;
+}
+
+.sticker-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(18px * var(--iz, 1));
+  height: calc(18px * var(--iz, 1));
+  transform: translate(-50%, -50%);
+  background: var(--paper-white);
+  border: calc(3px * var(--iz, 1)) solid var(--steel-deep);
+  border-radius: 30% 40% 30% 42%;
+  box-shadow: calc(1.5px * var(--iz, 1)) calc(2px * var(--iz, 1)) 0 var(--panel-line);
+}
+
+/* ─────────── Ícono dentro del texto de un posit ─────────── */
+
+.inline-icon {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  margin: 0 0.05em;
+  vertical-align: -0.24em;
+  --icon-ink: var(--note-ink, var(--ink));
+  --icon-line: 3.5;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.inline-icon.ProseMirror-selectednode {
+  outline: 2.5px dashed var(--steel-deep);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─────────── Panel de íconos ─────────── */
+
+.icon-pop {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  width: min(440px, 100%);
+  margin: 0 auto;
+  bottom: calc(100% + 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: max(200px, min(560px, calc(var(--vvh, 100dvh) - var(--dock-h, 150px) - 96px)));
+  padding: 10px 12px 12px;
+  animation: pop-up 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  transform-origin: 50% 100%;
+}
+
+.icon-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.icon-pop-head .palette-title {
+  margin: 0;
+}
+
+.icon-pop-close {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  margin: -4px -4px -4px 0;
+  border-radius: 7px;
+  color: var(--panel-muted);
+}
+
+.icon-pop-close svg {
+  width: 21px;
+  height: 21px;
+  stroke-width: 2.6;
+}
+
+.icon-pop-close:active {
+  background: rgb(255 255 255 / 0.14);
+}
+
+.icon-search {
+  position: relative;
+  display: block;
+}
+
+.icon-search svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  transform: translateY(-50%);
+  stroke-width: 2.6;
+  color: var(--panel-muted);
+  pointer-events: none;
+}
+
+.icon-search input {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px 0 38px;
+  font: inherit;
+  font-size: 19px;
+  color: var(--panel-text);
+  background: rgb(0 0 0 / 0.28);
+  border: 2.5px solid var(--panel-line);
+  border-radius: 8px 10px 7px 11px / 10px 7px 11px 8px;
+  outline: none;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.icon-search input::placeholder {
+  color: var(--panel-muted);
+  opacity: 0.85;
+}
+
+.icon-search input:focus {
+  border-color: var(--steel);
+}
+
+.icon-search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.icon-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 2px 4px;
+  margin: 0 -2px;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+  touch-action: pan-x;
+}
+
+.icon-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.icon-chip {
+  flex: none;
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--panel-text);
+  background: var(--panel-2);
+  border: 2.5px solid var(--panel-line);
+  border-radius: 7px 9px 6px 10px / 9px 6px 10px 7px;
+  box-shadow: 1.5px 2px 0 var(--panel-line);
+  white-space: nowrap;
+}
+
+.icon-chip[aria-pressed='true'] {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 2px 2px 4px;
+  margin: 0 -2px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--steel-deep) transparent;
+}
+
+.icon-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 3px 5px;
+  min-width: 0;
+  color: var(--ink);
+  background: var(--paper-white);
+  border: 2.5px solid var(--panel-line);
+  border-radius: 7px 9px 6px 10px / 9px 6px 10px 7px;
+  box-shadow: 1.5px 2px 0 var(--panel-line);
+  transition:
+    transform 0.1s,
+    box-shadow 0.1s;
+}
+
+.icon-tile:active {
+  transform: translate(1px, 2px);
+  box-shadow: 0 0 0 var(--panel-line);
+}
+
+.icon-tile .ic-box {
+  width: 46px;
+  height: 46px;
+  --icon-ink: var(--ink);
+  --icon-line: 3;
+}
+
+.icon-tile-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.icon-empty {
+  grid-column: 1 / -1;
+  padding: 18px 8px;
+  font-size: 18px;
+  text-align: center;
+  color: var(--panel-muted);
+}
+
+.icon-hint {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.25;
+  color: var(--panel-muted);
+}
+
+@media (max-width: 520px) {
+  .icon-pop {
+    width: 100%;
+    padding: 9px 10px 10px;
+  }
+
+  .icon-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .icon-tile .ic-box {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+@media (hover: hover) {
+  .icon-tile:hover {
+    background: #fff;
+    transform: translateY(-1px);
+  }
+
+  .icon-chip:hover:not([aria-pressed='true']) {
+    background: #444c56;
+  }
+}
+
+/* El botón de íconos del estuche: una hojita crema con un destello, para que se vea el dibujo a color. */
+.icons-btn {
+  background: var(--paper-white);
+  --icon-ink: var(--ink);
+  --icon-line: 3;
+}
+
+.icons-btn .ic-box {
+  width: 34px;
+  height: 34px;
+}
+
+@media (max-width: 520px) {
+  .icons-btn .ic-box {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+/* El estuche pone un filtro de temblor a sus íconos de línea; el dibujo ya viene "temblado". */
+.icons-btn .ic {
+  width: 100%;
+  height: 100%;
+  filter: none;
+}
+
+.icons-btn[aria-expanded='true'] {
+  background: #ffe9b0;
+}

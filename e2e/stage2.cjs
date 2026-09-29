@@ -50,7 +50,7 @@ async function desktop(browser, url) {
 
   // 0 · Posit de bienvenida con lista de ejemplo
   let t = await taskInfo(page)
-  check('el posit de bienvenida trae una lista de pendientes de ejemplo', t.length === 4, `hay ${t.length}`)
+  check('el posit de bienvenida trae una lista de pendientes de ejemplo', t.length === 5, `hay ${t.length}`)
   check('el pendiente ya marcado se ve tachado y más tenue desde el inicio', t[1].checked && t[1].paths >= 2 && near(t[1].opacity, 0.55, 0.03), JSON.stringify(t[1]))
   check('al cargar no se reanima: el trazo aparece ya completo', t[1].dashoffset === 0, JSON.stringify(t[1]))
   check('los pendientes sin marcar no tienen trazo y se ven normales', t[0].paths === 0 && t[0].opacity === 1, JSON.stringify(t[0]))

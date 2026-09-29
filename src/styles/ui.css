@@ -466,6 +466,119 @@
   box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.28);
 }
 
+/* ─────────── Letra y estilo del posit ─────────── */
+
+.fmt-pop {
+  position: absolute;
+  z-index: 5;
+  bottom: calc(100% + 14px);
+  left: 50%;
+  translate: -50% 0;
+  width: min(430px, calc(100vw - 16px));
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-height: max(200px, min(520px, calc(var(--vvh, 100dvh) - var(--dock-h, 150px) - 90px)));
+  padding: 10px 12px 12px;
+  cursor: default;
+  animation: pop-up 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  transform-origin: 50% 100%;
+}
+
+.fmt-pop .palette-title {
+  margin: 0;
+}
+
+.fmt-marks {
+  display: flex;
+  gap: 8px;
+}
+
+.fmt-mark {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  min-height: 46px;
+  color: var(--panel-text);
+  background: var(--panel-2);
+  border: 2.5px solid var(--panel-line);
+  border-radius: 7px 9px 6px 10px / 9px 6px 10px 7px;
+  box-shadow: 1.5px 2px 0 var(--panel-line);
+  transition:
+    transform 0.1s,
+    box-shadow 0.1s;
+}
+
+.fmt-mark svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2.8;
+}
+
+.fmt-mark:active {
+  transform: translate(1px, 2px);
+  box-shadow: 0 0 0 var(--panel-line);
+}
+
+.fmt-mark[aria-pressed='true'] {
+  background: var(--steel-deep);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.28);
+}
+
+.fmt-fonts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 3px;
+  margin: -3px;
+}
+
+.fmt-font {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+  padding: 6px 10px 5px;
+  text-align: left;
+  color: var(--ink);
+  background: var(--paper-white);
+  border: 2.5px solid var(--panel-line);
+  border-radius: 7px 9px 6px 10px / 9px 6px 10px 7px;
+  box-shadow: 1.5px 2px 0 var(--panel-line);
+  transition:
+    transform 0.1s,
+    box-shadow 0.1s;
+}
+
+.fmt-font:active {
+  transform: translate(1px, 2px);
+  box-shadow: 0 0 0 var(--panel-line);
+}
+
+.fmt-font[aria-checked='true'] {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.fmt-sample {
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 1.25;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fmt-name {
+  font-size: 13px;
+  line-height: 1.1;
+  color: var(--ink-soft);
+}
+
 /* ─────────── Aviso con "Deshacer" ─────────── */
 
 .toast {
@@ -546,18 +659,47 @@
     padding-right: calc(var(--safe-r) + 8px);
   }
 
-  /* Escribiendo: solo íconos (salvo «Listo»), para que quepan Listo · viñetas · pendientes · borrar. */
-  .ctx.is-editing .ctx-btn:not(.is-primary) .ctx-label {
+  /* Escribiendo: solo íconos (salvo «Listo»), para que quepan Listo · viñetas · pendientes · ícono · borrar. */
+  .ctx.is-editing .ctx-btn:not(.is-primary) .ctx-label,
+  .ctx.is-sticker .ctx-btn .ctx-label {
     display: none;
   }
 
   .ctx.is-editing .ctx-btn:not(.is-primary) {
     padding: 0 12px;
   }
+
+  .ctx.is-sticker .ctx-btn {
+    padding: 0 16px;
+  }
+
+  /* El estuche lleva un botón más (íconos): los botones chicos ceden un poco de sitio a los marcadores. */
+  .more-btn {
+    width: 42px;
+    height: 42px;
+  }
+
+  .more-btn svg {
+    width: 23px;
+    height: 23px;
+  }
+
 }
 
 /* Celulares muy angostos (320–350 px): el nombre del tablero pesa más que el título de la app. */
+/* Con el teclado abierto no cabe todo: en pantallas angostas «Borrar» sale de la barra de escritura
+   (se borra al terminar de escribir) y los botones se aprietan un poco. */
+@media (max-width: 400px) {
+  .ctx.is-editing .ctx-trash {
+    display: none;
+  }
+}
+
 @media (max-width: 350px) {
+  .ctx.is-editing .ctx-btn:not(.is-primary) {
+    padding: 0 9px;
+  }
+
   .brand-name {
     display: none;
   }

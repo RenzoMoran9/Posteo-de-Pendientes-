@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { GRID } from '../lib/geometry'
-import { NOTE_DEFAULTS, createDefaultState, createPositsStore, taskDoc, textDoc } from './store'
+import { NOTE_DEFAULTS, STICKER_LIMITS, createDefaultState, createPositsStore, stickersOfNote, taskDoc, textDoc } from './store'
 
 let store: ReturnType<typeof createPositsStore>
 const S = () => store.getState()
@@ -154,6 +154,24 @@ describe('duplicar', () => {
   })
 })
 
+describe('letra del posit', () => {
+  it('un posit nuevo no trae letra (usa la de siempre) y se puede cambiar por posit', () => {
+    const a = S().addNote({ x: 1000, y: 0 })
+    const b = S().addNote({ x: 2000, y: 0 })
+    expect(S().notes[a].font).toBeUndefined()
+    S().patchNote(a, { font: 'caveat' })
+    expect(S().notes[a].font).toBe('caveat')
+    expect(S().notes[b].font).toBeUndefined()
+  })
+
+  it('duplicar un posit conserva su letra', () => {
+    const a = S().addNote({ x: 1000, y: 0 })
+    S().patchNote(a, { font: 'marker' })
+    const copy = S().duplicateNote(a) as string
+    expect(S().notes[copy].font).toBe('marker')
+  })
+})
+
 describe('vista por tablero', () => {
   it('guarda el zoom de cada tablero por separado', () => {
     const board = S().activeBoardId
@@ -167,7 +185,7 @@ describe('documentos con listas', () => {
     const welcome = Object.values(createDefaultState(1).notes)[0]
     const lists = (welcome.doc?.content ?? []).filter((n) => n.type === 'taskList')
     const items = lists.flatMap((l) => l.content ?? [])
-    expect(items).toHaveLength(4)
+    expect(items).toHaveLength(5)
     expect(items.filter((i) => i.attrs?.checked)).toHaveLength(1)
   })
 
@@ -187,5 +205,140 @@ describe('documentos con listas', () => {
     const id = store2.getState().addNote({ x: 900, y: 0, doc: taskDoc('Hoy', [['Llamar', true]]) })
     const saved = JSON.stringify(store2.getState().notes[id].doc)
     expect(JSON.parse(saved).content[1].content[0].attrs.checked).toBe(true)
+  })
+})
+
+describe('íconos pegados', () => {
+  const stickers = () => Object.values(S().stickers)
+  const looseIds = () => stickers().filter((st) => st.noteId === null).map((st) => st.id)
+
+  it('el posit de bienvenida trae un ícono de ejemplo pegado en su esquina', () => {
+    const welcome = notes()[0]
+    const own = stickersOfNote(S(), welcome.id)
+    expect(own).toHaveLength(1)
+    expect(own[0].icon).toBe('brillos')
+    expect(own[0].boardId).toBe(welcome.boardId)
+  })
+
+  it('un ícono nuevo queda seleccionado, encima de todo y con una inclinación pequeña', () => {
+    const id = S().addSticker({ icon: 'fuego', x: 500, y: 40 })
+    const st = S().stickers[id]
+    expect(S().selectedStickerId).toBe(id)
+    expect(S().selectedId).toBeNull()
+    expect(st.noteId).toBeNull()
+    expect(st.z).toBe(S().nextZ - 1)
+    expect(Math.abs(st.tilt)).toBeLessThanOrEqual(6)
+    expect(st.size).toBe(56)
+  })
+
+  it('el tamaño siempre queda dentro de los límites', () => {
+    const id = S().addSticker({ icon: 'fuego', size: 5000 })
+    expect(S().stickers[id].size).toBe(STICKER_LIMITS.max)
+    S().patchSticker(id, { size: 1 })
+    expect(S().stickers[id].size).toBe(STICKER_LIMITS.min)
+  })
+
+  it('pegado a un posit: sus coordenadas son relativas y va con el posit', () => {
+    const note = notes()[0]
+    const id = S().addSticker({ icon: 'sirena', noteId: note.id, x: 10, y: -12 })
+    expect(S().stickers[id].noteId).toBe(note.id)
+    S().patchNote(note.id, { x: 480, y: 96 })
+    // no se toca: es relativo al posit
+    expect(S().stickers[id].x).toBe(10)
+    expect(S().stickers[id].y).toBe(-12)
+  })
+
+  it('un noteId que no existe lo deja suelto en la hoja', () => {
+    const id = S().addSticker({ icon: 'sol', noteId: 'no-existe', x: 3, y: 4 })
+    expect(S().stickers[id].noteId).toBeNull()
+  })
+
+  it('placeSticker lo pega a un posit o lo suelta, y lo trae al frente', () => {
+    const note = notes()[0]
+    const id = S().addSticker({ icon: 'rayo', x: 900, y: 900 })
+    const z0 = S().stickers[id].z
+    S().placeSticker(id, { noteId: note.id, x: 30, y: 8 })
+    expect(S().stickers[id]).toMatchObject({ noteId: note.id, x: 30, y: 8 })
+    expect(S().stickers[id].z).toBeGreaterThan(z0)
+    S().placeSticker(id, { noteId: null, x: 700, y: 20 })
+    expect(S().stickers[id]).toMatchObject({ noteId: null, x: 700, y: 20 })
+  })
+
+  it('seleccionar un ícono deselecciona el posit (y al revés) y trae al frente el ícono y su posit', () => {
+    const a = S().addNote({ x: 1000, y: 0 })
+    const b = S().addNote({ x: 2000, y: 0 })
+    const id = S().addSticker({ icon: 'estrella', noteId: a, x: 5, y: 5 })
+    S().select(b)
+    expect(S().selectedStickerId).toBeNull()
+    S().selectSticker(id)
+    expect(S().selectedId).toBeNull()
+    expect(S().selectedStickerId).toBe(id)
+    expect(S().notes[a].z).toBeGreaterThan(S().notes[b].z)
+    S().select(b)
+    expect(S().selectedStickerId).toBeNull()
+    expect(S().selectedId).toBe(b)
+  })
+
+  it('borrar un ícono avisa y Deshacer lo devuelve igual', () => {
+    const id = S().addSticker({ icon: 'campana', x: 100, y: 50, size: 80, tilt: 3 })
+    const original = S().stickers[id]
+    S().deleteSticker(id)
+    expect(S().stickers[id]).toBeUndefined()
+    expect(S().selectedStickerId).toBeNull()
+    expect(S().toast?.message).toBe('Ícono borrado')
+    S().toast?.onAction?.()
+    expect(S().stickers[id]).toMatchObject({ icon: 'campana', x: 100, y: 50, size: 80, tilt: 3, noteId: null })
+    expect(S().stickers[id].createdAt).toBe(original.createdAt)
+    expect(S().toast).toBeNull()
+  })
+
+  it('duplicar un ícono hace una copia desplazada y seleccionada', () => {
+    const id = S().addSticker({ icon: 'trofeo', x: 100, y: 100 })
+    const copyId = S().duplicateSticker(id) as string
+    expect(copyId).not.toBe(id)
+    expect(S().stickers[copyId]).toMatchObject({ icon: 'trofeo', x: 114, y: 114 })
+    expect(S().selectedStickerId).toBe(copyId)
+  })
+
+  it('al borrar un posit se borran sus íconos, y Deshacer devuelve el posit con ellos', () => {
+    const note = notes()[0]
+    const before = stickersOfNote(S(), note.id).length
+    S().addSticker({ icon: 'fuego', noteId: note.id, x: 1, y: 1 })
+    expect(stickersOfNote(S(), note.id)).toHaveLength(before + 1)
+    const loose = S().addSticker({ icon: 'sol', x: 1500, y: 0 })
+    S().deleteNote(note.id)
+    expect(stickersOfNote(S(), note.id)).toHaveLength(0)
+    expect(S().stickers[loose]).toBeDefined() // los sueltos no se tocan
+    S().toast?.onAction?.()
+    expect(S().notes[note.id]).toBeDefined()
+    expect(stickersOfNote(S(), note.id)).toHaveLength(before + 1)
+  })
+
+  it('duplicar un posit duplica también sus íconos', () => {
+    const note = notes()[0]
+    const before = stickersOfNote(S(), note.id)
+    const copyId = S().duplicateNote(note.id) as string
+    const twins = stickersOfNote(S(), copyId)
+    expect(twins).toHaveLength(before.length)
+    expect(twins.map((t) => t.icon).sort()).toEqual(before.map((t) => t.icon).sort())
+    expect(twins.every((t) => !before.some((b) => b.id === t.id))).toBe(true)
+    expect(looseIds()).toHaveLength(0)
+  })
+
+  it('los íconos usados se recuerdan: el último primero, sin repetir, con tope', () => {
+    for (const icon of ['a', 'b', 'c', 'a']) S().rememberIcon(icon)
+    expect(S().settings.recentIcons.slice(0, 3)).toEqual(['a', 'c', 'b'])
+    for (let i = 0; i < 30; i++) S().rememberIcon(`x${i}`)
+    expect(S().settings.recentIcons).toHaveLength(12)
+    expect(S().settings.recentIcons[0]).toBe('x29')
+  })
+
+  it('el panel de íconos se abre para el tablero o para el texto de un posit', () => {
+    S().openIcons({ mode: 'board' })
+    expect(S().iconPanel).toEqual({ mode: 'board' })
+    S().openIcons({ mode: 'text', noteId: 'n1' })
+    expect(S().iconPanel).toEqual({ mode: 'text', noteId: 'n1' })
+    S().closeIcons()
+    expect(S().iconPanel).toBeNull()
   })
 })

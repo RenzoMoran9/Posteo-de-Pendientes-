@@ -220,6 +220,9 @@ export const PencilTaskItem = TaskItem.extend({
       const mutationObserver = new MutationObserver(() => drawSoon(false))
       mutationObserver.observe(content, { childList: true, subtree: true, characterData: true })
       void document.fonts?.ready.then(() => drawSoon(false))
+      // una letra que se elige después (y carga en ese momento) también mueve los renglones
+      const onFontsLoaded = () => drawSoon(false)
+      document.fonts?.addEventListener?.('loadingdone', onFontsLoaded)
       if (node.attrs.checked) drawSoon(false)
 
       input.addEventListener('mousedown', (e) => e.preventDefault()) // no roba el foco al escribir
@@ -265,6 +268,7 @@ export const PencilTaskItem = TaskItem.extend({
           cancelAnimationFrame(raf)
           resizeObserver.disconnect()
           mutationObserver.disconnect()
+          document.fonts?.removeEventListener?.('loadingdone', onFontsLoaded)
         },
       }
     }

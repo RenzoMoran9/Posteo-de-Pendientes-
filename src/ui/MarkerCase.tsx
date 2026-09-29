@@ -4,6 +4,7 @@ import { Palette, Plus } from 'lucide-react'
 import { addNoteAtCenter } from '../board/actions'
 import { useCoarsePointer } from '../hooks/useCoarsePointer'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { IconArt } from '../icons/IconArt'
 import { FEATURED_COUNT, PAPER_COLORS, type PaperColor } from '../lib/palette'
 import { store, useStore } from '../store/store'
 
@@ -45,6 +46,7 @@ export function MarkerCase() {
   const narrow = useMediaQuery('(max-width: 520px)')
   const tiny = useMediaQuery('(max-width: 350px)')
   const editing = useStore((s) => s.editingId !== null)
+  const iconsOpen = useStore((s) => s.iconPanel?.mode === 'board')
   const current = useStore((s) => (s.selectedId ? s.notes[s.selectedId]?.color : undefined) ?? s.settings.defaultColor)
   const [open, setOpen] = useState(false)
 
@@ -68,7 +70,7 @@ export function MarkerCase() {
   if (editing && coarse) return null
 
   // En pantallas angostas asoman menos marcadores; el que tienes en la mano siempre se ve.
-  const count = tiny ? 5 : narrow ? 6 : FEATURED_COUNT
+  const count = tiny ? 4 : narrow ? 5 : FEATURED_COUNT
   const featured = PAPER_COLORS.slice(0, count)
   const tray: PaperColor[] = featured.some((c) => same(c.hex, current))
     ? featured
@@ -102,9 +104,29 @@ export function MarkerCase() {
         aria-label="Más colores"
         aria-expanded={open}
         title="Más colores"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          store.getState().closeIcons()
+          setOpen((o) => !o)
+        }}
       >
         <Palette aria-hidden="true" />
+      </button>
+
+      <button
+        type="button"
+        className="more-btn icons-btn"
+        aria-label="Íconos"
+        aria-expanded={iconsOpen}
+        title="Íconos (I)"
+        data-icon-panel
+        onClick={() => {
+          const s = store.getState()
+          setOpen(false)
+          if (s.iconPanel) s.closeIcons()
+          else s.openIcons({ mode: 'board' })
+        }}
+      >
+        <IconArt id="brillos" />
       </button>
 
       {open && (

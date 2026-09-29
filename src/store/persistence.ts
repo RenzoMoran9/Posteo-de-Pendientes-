@@ -1,6 +1,8 @@
 import type { StoreApi } from 'zustand'
 import { DEFAULT_COLOR } from '../lib/palette'
-import type { Board, Note, PersistedState, SaveStatus, View } from './types'
+import type { Board, Note, PersistedState, SaveStatus, Sticker, View } from './types'
+
+export const MAX_RECENT_ICONS = 12
 
 export const STORAGE_KEY = 'posits:v1'
 
@@ -64,9 +66,38 @@ export function parsePersisted(raw: string | null): PersistedState | null {
       h: num(n.h, 216),
       z,
       color: str(n.color, DEFAULT_COLOR),
+      ...(typeof n.font === 'string' && n.font ? { font: n.font } : {}),
       doc: isObj(n.doc) ? (n.doc as Note['doc']) : null,
       createdAt: num(n.createdAt, 0),
       updatedAt: num(n.updatedAt, 0),
+    }
+  }
+
+  // Íconos pegados. Los de un posit que ya no existe se descartan (sus coordenadas eran relativas a él).
+  const stickers: Record<string, Sticker> = {}
+  if (isObj(data.stickers)) {
+    for (const [id, s] of Object.entries(data.stickers)) {
+      if (!isObj(s)) continue
+      const icon = str(s.icon, '')
+      const boardId = str(s.boardId, '')
+      if (!icon || !boards[boardId]) continue
+      const noteId = typeof s.noteId === 'string' ? s.noteId : null
+      if (noteId && !notes[noteId]) continue
+      const z = num(s.z, 1)
+      maxZ = Math.max(maxZ, z)
+      stickers[id] = {
+        id,
+        boardId,
+        icon,
+        noteId,
+        x: num(s.x, 0),
+        y: num(s.y, 0),
+        size: Math.min(320, Math.max(24, num(s.size, 56))),
+        tilt: num(s.tilt, 0),
+        z,
+        createdAt: num(s.createdAt, 0),
+        updatedAt: num(s.updatedAt, 0),
+      }
     }
   }
 
@@ -92,9 +123,16 @@ export function parsePersisted(raw: string | null): PersistedState | null {
     boardOrder: order,
     activeBoardId: active,
     notes,
+    stickers,
     nextZ: Math.max(num(data.nextZ, 1), maxZ + 1),
     views,
-    settings: { magnet: st.magnet !== false, defaultColor: str(st.defaultColor, DEFAULT_COLOR) },
+    settings: {
+      magnet: st.magnet !== false,
+      defaultColor: str(st.defaultColor, DEFAULT_COLOR),
+      recentIcons: Array.isArray(st.recentIcons)
+        ? st.recentIcons.filter((v): v is string => typeof v === 'string').slice(0, MAX_RECENT_ICONS)
+        : [],
+    },
   }
 }
 
@@ -113,6 +151,7 @@ export function pickPersisted(s: PersistedState): PersistedState {
     boardOrder: s.boardOrder,
     activeBoardId: s.activeBoardId,
     notes: s.notes,
+    stickers: s.stickers,
     nextZ: s.nextZ,
     views: s.views,
     settings: s.settings,
@@ -161,6 +200,7 @@ export function attachPersistence(
   const unsubscribe = api.subscribe((s, prev) => {
     if (
       s.notes !== prev.notes ||
+      s.stickers !== prev.stickers ||
       s.boards !== prev.boards ||
       s.boardOrder !== prev.boardOrder ||
       s.activeBoardId !== prev.activeBoardId ||

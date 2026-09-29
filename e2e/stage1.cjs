@@ -44,9 +44,12 @@ async function desktop(browser, url) {
 
   await shot(page, 'pc-01-inicio')
   const c = await page.evaluate(() => {
-    const r = document.querySelector('.note').getBoundingClientRect()
+    // el posit y su ícono de ejemplo (la esquina que sobresale) forman el conjunto que se centra
+    const rs = [...document.querySelectorAll('.note, .note .sticker')].map((e) => e.getBoundingClientRect())
+    const top = Math.min(...rs.map((r) => r.top))
+    const bottom = Math.max(...rs.map((r) => r.bottom))
     const ins = window.__posits.view.insets()
-    return { cy: r.top + r.height / 2, target: ins.top + (innerHeight - ins.top - ins.bottom) / 2 }
+    return { cy: (top + bottom) / 2, target: ins.top + (innerHeight - ins.top - ins.bottom) / 2 }
   })
   check('el posit de bienvenida arranca centrado en el área libre', near(c.cy, c.target, 6), JSON.stringify(c))
 
@@ -259,9 +262,12 @@ async function phone(browser, url) {
 
   await shot(page, 'cel-01-inicio')
   const c = await page.evaluate(() => {
-    const r = document.querySelector('.note').getBoundingClientRect()
+    // el posit y su ícono de ejemplo (la esquina que sobresale) forman el conjunto que se centra
+    const rs = [...document.querySelectorAll('.note, .note .sticker')].map((e) => e.getBoundingClientRect())
+    const top = Math.min(...rs.map((r) => r.top))
+    const bottom = Math.max(...rs.map((r) => r.bottom))
     const ins = window.__posits.view.insets()
-    return { cy: r.top + r.height / 2, target: ins.top + (innerHeight - ins.top - ins.bottom) / 2 }
+    return { cy: (top + bottom) / 2, target: ins.top + (innerHeight - ins.top - ins.bottom) / 2 }
   })
   check('(celular) el posit de bienvenida arranca centrado', near(c.cy, c.target, 6), JSON.stringify(c))
 

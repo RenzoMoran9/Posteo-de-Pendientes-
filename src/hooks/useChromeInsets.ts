@@ -15,6 +15,8 @@ export function useChromeInsets(topRef: RefObject<HTMLElement | null>, dockRef: 
         top: (top?.offsetHeight ?? 0) + 6,
         bottom: (dock?.offsetHeight ?? 0) + 6,
       })
+      // el panel de íconos usa esta medida para no salirse por arriba
+      document.documentElement.style.setProperty('--dock-h', `${dock?.offsetHeight ?? 0}px`)
     }
     measure()
     const ro = new ResizeObserver(measure)

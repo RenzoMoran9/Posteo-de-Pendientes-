@@ -22,8 +22,34 @@ export interface Note {
   /** Orden de apilamiento: el mayor queda encima. */
   z: number
   color: string
+  /** Letra del posit (id de src/lib/fonts.ts). Sin valor = la de siempre. */
+  font?: string
   /** Contenido del posit (documento de TipTap en JSON). */
   doc: JSONContent | null
+  createdAt: number
+  updatedAt: number
+}
+
+/** Un ícono pegado: suelto en la hoja o sobre un posit (donde se mueve, cambia de tamaño y se borra con él). */
+export interface Sticker {
+  id: string
+  boardId: string
+  /** Id del dibujo en el catálogo de íconos (src/icons). */
+  icon: string
+  /** Posit al que está pegado, o null si está suelto en la hoja. */
+  noteId: string | null
+  /**
+   * Esquina superior izquierda: en unidades del tablero si está suelto,
+   * o relativa a la esquina del posit si está pegado a uno.
+   */
+  x: number
+  y: number
+  /** Lado del cuadro que ocupa el dibujo. */
+  size: number
+  /** Inclinación en grados (los íconos se pegan un poco chuecos, como de verdad). */
+  tilt: number
+  /** Orden de apilamiento (entre íconos sueltos y posits, o entre los íconos de un mismo posit). */
+  z: number
   createdAt: number
   updatedAt: number
 }
@@ -34,6 +60,8 @@ export interface Settings {
   magnet: boolean
   /** Color con el que nacen los posits nuevos ("el marcador en la mano"). */
   defaultColor: string
+  /** Últimos íconos usados (el más reciente primero). */
+  recentIcons: string[]
 }
 
 export type SaveStatus = 'saved' | 'saving' | 'error'
@@ -45,6 +73,7 @@ export interface PersistedState {
   boardOrder: string[]
   activeBoardId: string
   notes: Record<string, Note>
+  stickers: Record<string, Sticker>
   nextZ: number
   /** Zoom y posición de cada tablero: dependen del dispositivo, no se sincronizan. */
   views: Record<string, View>

@@ -54,6 +54,87 @@ describe('parsePersisted', () => {
   })
 })
 
+describe('letra del posit al guardar y cargar', () => {
+  it('la letra elegida sobrevive y un posit sin letra no la inventa', () => {
+    const state = createDefaultState(1)
+    const [id] = Object.keys(state.notes)
+    const raw = JSON.parse(JSON.stringify(pickPersisted(state)))
+    expect(parsePersisted(JSON.stringify(raw))?.notes[id].font).toBeUndefined()
+    raw.notes[id].font = 'caveat'
+    expect(parsePersisted(JSON.stringify(raw))?.notes[id].font).toBe('caveat')
+    raw.notes[id].font = 42
+    expect(parsePersisted(JSON.stringify(raw))?.notes[id].font).toBeUndefined()
+  })
+})
+
+describe('íconos pegados al guardar y cargar', () => {
+  const raw = () => JSON.parse(JSON.stringify(pickPersisted(createDefaultState(1))))
+
+  it('lo guardado antes de la Etapa 3 (sin íconos) se sigue abriendo', () => {
+    const old = raw()
+    delete old.stickers
+    delete old.settings.recentIcons
+    const back = parsePersisted(JSON.stringify(old))
+    expect(back).not.toBeNull()
+    expect(back?.stickers).toEqual({})
+    expect(back?.settings.recentIcons).toEqual([])
+  })
+
+  it('descarta íconos sin dibujo, de tableros inexistentes o de un posit que ya no existe', () => {
+    const data = raw()
+    const [noteId] = Object.keys(data.notes)
+    const [boardId] = Object.keys(data.boards)
+    const ok = { boardId, icon: 'fuego', noteId: null, x: 1, y: 2, size: 60, tilt: 4, z: 3, createdAt: 1, updatedAt: 1 }
+    data.stickers = {
+      bueno: ok,
+      sinIcono: { ...ok, icon: '' },
+      tableroFantasma: { ...ok, boardId: 'nada' },
+      positFantasma: { ...ok, noteId: 'nada' },
+      pegado: { ...ok, noteId },
+    }
+    const back = parsePersisted(JSON.stringify(data))
+    expect(Object.keys(back?.stickers ?? {}).sort()).toEqual(['bueno', 'pegado'])
+  })
+
+  it('repara tamaños absurdos y números inválidos, y nextZ queda por encima del z de los íconos', () => {
+    const data = raw()
+    const [boardId] = Object.keys(data.boards)
+    data.nextZ = 2
+    data.stickers = {
+      grande: { boardId, icon: 'sol', noteId: null, x: 'x', y: null, size: 99999, tilt: 'a', z: 40 },
+      chico: { boardId, icon: 'sol', noteId: null, x: 0, y: 0, size: 1, z: 1 },
+    }
+    const back = parsePersisted(JSON.stringify(data))
+    expect(back?.stickers.grande).toMatchObject({ x: 0, y: 0, size: 320, tilt: 0 })
+    expect(back?.stickers.chico.size).toBe(24)
+    expect(back?.nextZ).toBe(41)
+  })
+
+  it('los íconos recientes se limpian: solo texto y con tope', () => {
+    const data = raw()
+    data.settings.recentIcons = ['a', 3, null, ...Array.from({ length: 30 }, (_, i) => `i${i}`)]
+    const back = parsePersisted(JSON.stringify(data))
+    expect(back?.settings.recentIcons.every((v) => typeof v === 'string')).toBe(true)
+    expect(back?.settings.recentIcons.length).toBeLessThanOrEqual(12)
+  })
+
+  it('agregar un ícono cuenta como cambio y se guarda', () => {
+    vi.useFakeTimers()
+    try {
+      const storage = memoryStorage()
+      const store = createPositsStore(createDefaultState(1))
+      attachPersistence(store, storage, 100)
+      store.getState().addSticker({ icon: 'rayo', x: 5, y: 5 })
+      vi.advanceTimersByTime(200)
+      expect(storage.writes).toBe(1)
+      const saved = parsePersisted(storage.data.get(STORAGE_KEY) ?? null)
+      expect(Object.values(saved?.stickers ?? {}).some((st) => st.icon === 'rayo')).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
 describe('attachPersistence (guardado automático)', () => {
   beforeEach(() => {
     vi.useFakeTimers()

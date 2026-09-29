@@ -10,10 +10,18 @@
     "preview": "vite preview --host --port 4173",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "e2e": "node e2e/stage1.cjs && node e2e/stage2.cjs"
+    "e2e": "node e2e/stage1.cjs && node e2e/stage2.cjs && node e2e/stage3.cjs && node e2e/stage3-fonts.cjs",
+    "icons": "node scripts/icons/build.mjs",
+    "icons:sheet": "node scripts/icons/sheet.mjs"
   },
   "dependencies": {
+    "@fontsource/architects-daughter": "^5.3.0",
+    "@fontsource/caveat": "^5.3.0",
+    "@fontsource/covered-by-your-grace": "^5.3.0",
+    "@fontsource/gochi-hand": "^5.3.0",
+    "@fontsource/just-another-hand": "^5.3.0",
     "@fontsource/kalam": "^5.3.0",
+    "@fontsource/patrick-hand": "^5.3.0",
     "@fontsource/permanent-marker": "^5.3.0",
     "@tiptap/core": "^3.31.3",
     "@tiptap/extension-list": "^3.31.3",
