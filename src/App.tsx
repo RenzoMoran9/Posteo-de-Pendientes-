@@ -4,6 +4,7 @@ import { kbdProxy } from './board/kbd'
 import { useChromeInsets } from './hooks/useChromeInsets'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useVisualViewport } from './hooks/useVisualViewport'
+import { Mascot } from './mascot/Mascot'
 import { ContextBar } from './ui/ContextBar'
 import { IconPanel } from './ui/IconPanel'
 import { MarkerCase } from './ui/MarkerCase'
@@ -28,6 +29,7 @@ export default function App() {
       <SvgDefs />
       <Board />
       <TopBar ref={topRef} />
+      <Mascot />
       <div className="dock" ref={dockRef}>
         <Toast />
         <ContextBar />

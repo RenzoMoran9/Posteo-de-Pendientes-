@@ -1,8 +1,11 @@
 # Créditos y licencias de terceros
 
-Todo el arte de esta app (logo, ícono, marcadores, cinta, papel, esquina doblada y los **123 íconos
-dibujados a mano** del panel) es **propio**: se dibuja con CSS/SVG y con los generadores de
-`scripts/icons/` (no se copió ningún dibujo de otras librerías). No se usa ninguna imagen ni ícono de la
+Todo el arte de esta app (logo, ícono, marcadores, cinta, papel, esquina doblada, los **123 íconos
+dibujados a mano** del panel y **Chispa, la mascota**) es **propio**: se dibuja con CSS/SVG y con los
+generadores de `scripts/icons/` (no se copió ningún dibujo de otras librerías). Chispa no es el logo ni la
+mascota de ninguna marca; el comportamiento de una mascota que mira al cursor, parpadea, se duerme y habla en
+una nube es una idea común a muchos proyectos abiertos (ClippyJS, OpenPets y otros) y aquí está escrito desde cero:
+no se usa código ni arte de ellos. No se usa ninguna imagen ni ícono de la
 herramienta de pizarra que sirvió de inspiración visual (`referencias/` no se sube al repositorio).
 
 ## Se incluyen en la app

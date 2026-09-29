@@ -132,6 +132,16 @@ export function parsePersisted(raw: string | null): PersistedState | null {
       recentIcons: Array.isArray(st.recentIcons)
         ? st.recentIcons.filter((v): v is string => typeof v === 'string').slice(0, MAX_RECENT_ICONS)
         : [],
+      mascot: st.mascot === 'quiet' || st.mascot === 'off' ? st.mascot : 'on',
+      mascotMet: st.mascotMet === true,
+      mascotPos:
+        isObj(st.mascotPos) && typeof st.mascotPos.x === 'number' && typeof st.mascotPos.y === 'number' && Number.isFinite(st.mascotPos.x) && Number.isFinite(st.mascotPos.y)
+          ? { x: Math.min(1, Math.max(0, st.mascotPos.x)), y: Math.min(1, Math.max(0, st.mascotPos.y)) }
+          : null,
+      mascotDone:
+        isObj(st.mascotDone) && typeof st.mascotDone.day === 'string' && typeof st.mascotDone.n === 'number' && Number.isFinite(st.mascotDone.n) && st.mascotDone.n >= 0
+          ? { day: st.mascotDone.day, n: Math.floor(st.mascotDone.n) }
+          : { day: '', n: 0 },
     },
   }
 }

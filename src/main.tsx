@@ -18,13 +18,22 @@ import './styles/lists.css'
 import './styles/ui.css'
 // después de ui.css: el panel y el botón de íconos ajustan piezas que ui.css define (.hand-box, .more-btn)
 import './styles/icons.css'
+import './styles/mascot.css'
 import App from './App'
 import { view } from './board/view'
+import { mascotStore } from './mascot/mascotStore'
+import { mascotDebug } from './mascot/watch'
 import { store } from './store/store'
 
 // Para las pruebas automáticas y para revisar el estado a mano: abre la app con `?debug`.
 if (import.meta.env.DEV || new URLSearchParams(location.search).has('debug')) {
-  ;(window as unknown as { __posits: unknown }).__posits = { store, view }
+  ;(window as unknown as { __posits: unknown }).__posits = { store, view, mascot: mascotStore, mascotDebug }
+  // `?debug&mascot=quiet` (o `off`, `on`) deja a la mascota en ese modo y ya presentada: así las pruebas no reciben saludos.
+  const m = new URLSearchParams(location.search).get('mascot')
+  if (m === 'on' || m === 'quiet' || m === 'off') {
+    store.getState().setMascotMode(m)
+    store.getState().markMascotMet()
+  }
 }
 
 createRoot(document.getElementById('root') as HTMLElement).render(

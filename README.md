@@ -12,7 +12,7 @@ se ven igual en ambos. La visión completa del proyecto está en [`CLAUDE.md`](.
 | 2 | Viñetas, pendientes con casillas y tachado tipo lápiz | ✅ hecha |
 | 3 | Íconos dibujados a mano (en el tablero, en el posit y dentro del texto) y letras manuscritas (negrita, cursiva, subrayado) | ✅ hecha |
 | 4 | Varios tableros | ⏳ |
-| 5 | Sincronización en la nube + inicio de sesión (Supabase) | ⏳ |
+| 5 | Sincronización en la nube + inicio de sesión (Supabase) y, con eso, el «cerebro» de Chispa con un modelo de lenguaje | ⏳ |
 
 ### Qué hace la Etapa 1
 
@@ -72,6 +72,35 @@ se ven igual en ambos. La visión completa del proyecto está en [`CLAUDE.md`](.
   Plano, Redonda, Marcador fino, Alta y angosta y Marcador grueso, ajustadas para verse del mismo tamaño.
 - **Negrita, cursiva y subrayado** mientras se escribe (botones o `Ctrl+B` / `Ctrl+I` / `Ctrl+U`).
 
+### Extra: Chispa, la mascota
+
+Una mascota propia (dibujada con el mismo generador de trazo a mano de los íconos; no es el logo ni la mascota de
+nadie) que vive sobre el estuche y hace de asistente. Todo ocurre **en tu aparato**: no envía nada a ninguna parte.
+
+- **Aspecto 3D de juguete**: el cuerpo, la chispa de la cabeza y la cara flotan a distinta profundidad dentro de un
+  escenario con perspectiva, con degradados de luz, ojos brillantes y sombra en el suelo. Gira hacia lo que mira
+  y se ve el paralaje.
+- **Te ve**: sus pupilas siguen al cursor (o al dedo); si dejas el ratón quieto, siguen el cursor de escritura o el
+  posit seleccionado; cada tanto mira por ahí y **parpadea** (a veces doble). Se **duerme** (con «zzz») tras 90 s sin
+  tocar nada y se despierta al moverte.
+- **Comenta lo que escribes**, en una nube dibujada a mano que se va escribiendo letra por letra (y ella mueve la
+  boca). Espera a que hagas una pausa, nunca te interrumpe mientras tecleas, y no es pesada: como mucho un comentario
+  cada 20 s y ocho cada 10 min, sin repetir tema. Entiende urgencias, hoy/mañana/días, horas, montos, trámites de
+  compras (expediente, TDR, factura, orden de compra…), insumos médicos, llamadas, correos, reuniones, preguntas,
+  cansancio y posits muy largos o con líneas que parecen pendientes.
+- **Ofrece ayuda con un botón**: «Pintar de rojo» un posit urgente, «Poner sirena», «Poner teléfono»… se aceptan
+  con un toque y no te sacan del posit ni cierran el teclado.
+- **Celebra**: al marcar un pendiente festeja (ojos contentos, brazos arriba) y, a veces, dice «Van 3 de 5»; al
+  terminar un posit o todo el tablero, más. Al abrir la app saluda según la hora y resume tus pendientes.
+- **Tócala** para que te diga un consejo o cuántos pendientes te quedan, y para elegir **«Que calle»** (sigue mirando
+  pero no comenta) u **«Ocultar»** (solo asoma su chispa; tócala para que vuelva). Se recuerda en cada dispositivo.
+- En el celular se apoya sobre el estuche (sube cuando aparece la barra de acciones) y se hace más chica con el
+  teclado abierto.
+
+Es un asistente de **reglas** (`src/mascot/`): lee las palabras del posit y decide qué decir. Para que sea más
+«inteligente» (entender frases libres, resumir, redactar) habría que conectarla a un modelo de lenguaje; el plan y sus
+requisitos están en la Etapa 5.
+
 Atajos de teclado (PC): `N` nuevo · `I` íconos · `Enter` escribir · `Esc` salir · `Supr` borrar · `Ctrl+D` duplicar ·
 flechas mueven el posit o el ícono · `+` `-` `0` zoom (con un ícono seleccionado, su tamaño) · `[` `]` girar el ícono ·
 `F` ver todo · `Ctrl+Mayús+8` viñetas · `Ctrl+Mayús+9` pendientes · `Ctrl+B` `Ctrl+I` `Ctrl+U` estilo del texto.
@@ -87,8 +116,8 @@ npm run dev          # http://localhost:5173  (y la dirección de "Network" para
 npm run build        # compila a dist/
 npm run preview      # sirve dist/ en http://localhost:4173
 npm test             # pruebas unitarias (lógica de datos, geometría, guardado)
-npm run e2e          # pruebas en un navegador real (Etapas 1 a 3 y giro de íconos), tamaño PC y celular con toques reales (necesita `npm run build`)
-npm run icons        # vuelve a generar src/icons/data.generated.ts a partir de los dibujos de scripts/icons/
+npm run e2e          # pruebas en un navegador real (Etapas 1 a 3, giro de íconos y mascota), tamaño PC y celular con toques reales (necesita `npm run build`)
+npm run icons        # vuelve a generar los íconos (src/icons/data.generated.ts) y a Chispa (src/mascot/art.generated.ts)
 npm run icons:sheet -- --cat urgente   # hoja de revisión de los íconos (PNG en scripts/icons/out/)
 ```
 
@@ -120,6 +149,7 @@ npm run icons:sheet -- --cat urgente   # hoja de revisión de los íconos (PNG e
 src/
   board/     tablero: vista (zoom/pan), gestos, posit, ícono pegado, editor
   icons/     catálogo, buscador y dibujo de los íconos (los datos vienen de scripts/icons)
+  mascot/    Chispa: dibujo en capas 3D, mirada y parpadeo, nube de comentarios, cerebro de reglas
   store/     datos: almacén, guardado automático
   ui/        barra superior, estuche de marcadores, panel de íconos, letra y estilo, acciones, avisos
   lib/       geometría, paleta y contraste, letras, utilidades

@@ -77,6 +77,16 @@ export function rotateSticker(id: string, dir: 1 | -1): void {
 }
 
 /**
+ * El sitio del ícono número `k` (0, 1, 2…) pegado a un posit de ancho `noteW`: en la esquina superior derecha,
+ * y los siguientes a su izquierda en fila, como pegatinas (cuando ya no caben, otra fila).
+ */
+export function cornerSlot(noteW: number, k: number, size: number = STICKER_DEFAULTS.size): { x: number; y: number } {
+  const step = size * 0.82
+  const perRow = Math.max(1, Math.floor((noteW + size * 0.28) / step))
+  return { x: noteW - size * 0.72 - (k % perRow) * step, y: -size * 0.3 + Math.floor(k / perRow) * step }
+}
+
+/**
  * Pega un ícono desde el panel. Con un posit seleccionado (o un ícono suyo), va a su esquina superior derecha
  * (y los siguientes a su izquierda, como pegatinas en fila); sin posit, cae suelto en la hoja, en el hueco libre
  * más cercano al centro de lo que se ve. Después se arrastra a donde se quiera.
@@ -90,11 +100,7 @@ export function addStickerFromPanel(icon: string): string {
   const note = s.selectedId ? s.notes[s.selectedId] : sel?.noteId ? s.notes[sel.noteId] : undefined
 
   if (note) {
-    const step = size * 0.82
-    const perRow = Math.max(1, Math.floor((note.w + size * 0.28) / step))
-    const k = stickersOfNote(s, note.id).length
-    const x = note.w - size * 0.72 - (k % perRow) * step
-    const y = -size * 0.3 + Math.floor(k / perRow) * step
+    const { x, y } = cornerSlot(note.w, stickersOfNote(s, note.id).length, size)
     const id = s.addSticker({ icon, noteId: note.id, x, y, size })
     view.ensureVisible({ x: note.x + x, y: note.y + y, w: size, h: size })
     persistViewSoon()

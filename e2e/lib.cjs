@@ -38,15 +38,20 @@ const getState = (page) =>
     }
   })
 
-/** Abre la app en un contexto nuevo, espera al tablero listo y a que termine el fundido de entrada. */
-async function open(browser, url, opts) {
+/**
+ * Abre la app en un contexto nuevo, espera al tablero listo y a que termine el fundido de entrada.
+ * Por defecto la mascota queda oculta (y sin siquiera su chispa): las pruebas de tablero, íconos y letras miden y tocan
+ * el tablero, y ella se prueba aparte en e2e/mascot.cjs (que pasa `hideMascot = false`).
+ */
+async function open(browser, url, opts, query = 'debug&mascot=off', hideMascot = true) {
   const ctx = await browser.newContext(opts)
   const page = await ctx.newPage()
   page.on('console', (m) => {
     if (m.type() === 'error' || m.type() === 'warning') consoleErrors.push(`[${m.type()}] ${m.text()}`)
   })
   page.on('pageerror', (e) => consoleErrors.push(`[pageerror] ${e.message}`))
-  await page.goto(`${url}?debug`)
+  await page.goto(`${url}?${query}`)
+  if (hideMascot) await page.addStyleTag({ content: '.mascot, .mascot-peek { display: none !important }' })
   await page.evaluate(() => document.fonts.ready)
   await page.waitForSelector('.world[data-ready]', { state: 'attached' })
   await page.waitForTimeout(450)

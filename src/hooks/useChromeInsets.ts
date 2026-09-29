@@ -17,6 +17,8 @@ export function useChromeInsets(topRef: RefObject<HTMLElement | null>, dockRef: 
       })
       // el panel de íconos usa esta medida para no salirse por arriba
       document.documentElement.style.setProperty('--dock-h', `${dock?.offsetHeight ?? 0}px`)
+      // y la mascota, para moverse solo por el espacio libre entre las dos barras
+      document.documentElement.style.setProperty('--top-h', `${top?.offsetHeight ?? 0}px`)
     }
     measure()
     const ro = new ResizeObserver(measure)

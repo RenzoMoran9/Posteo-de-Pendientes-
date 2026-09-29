@@ -5,7 +5,7 @@ import { DEFAULT_COLOR, PAPER_COLORS } from '../lib/palette'
 import { seeded } from '../lib/seed'
 import { uid } from '../lib/uid'
 import { MAX_RECENT_ICONS, attachPersistence, loadPersisted } from './persistence'
-import type { Board, Note, PersistedState, SaveStatus, Sticker, View } from './types'
+import type { Board, MascotMode, Note, PersistedState, SaveStatus, Sticker, View } from './types'
 
 export const NOTE_DEFAULTS = { w: 240, h: 216 } as const
 export const NOTE_LIMITS = { minW: 144, minH: 120, maxW: 960, maxH: 1600 } as const
@@ -60,6 +60,8 @@ export interface AddStickerOptions {
   y?: number
   size?: number
   tilt?: number
+  /** Por defecto el ícono nuevo queda seleccionado; con `false` no se toca lo que estaba seleccionado ni en escritura. */
+  select?: boolean
 }
 
 interface Actions {
@@ -84,6 +86,11 @@ interface Actions {
   openIcons(target: IconPanelState): void
   closeIcons(): void
   rememberIcon(icon: string): void
+  setMascotMode(mode: MascotMode): void
+  markMascotMet(): void
+  setMascotPos(pos: { x: number; y: number } | null): void
+  /** Suma un pendiente marcado al conteo de hoy (`day` = AAAA-MM-DD; otro día empieza de cero) y devuelve el total. */
+  countMascotDone(day: string): number
 
   /** "Toma un marcador": color para los posits nuevos y para el posit seleccionado. */
   pickColor(hex: string): void
@@ -164,7 +171,7 @@ export function createDefaultState(now = Date.now()): PersistedState {
     stickers: { [stickerId]: sparkle },
     nextZ: 3,
     views: {},
-    settings: { magnet: true, defaultColor: DEFAULT_COLOR, recentIcons: [] },
+    settings: { magnet: true, defaultColor: DEFAULT_COLOR, recentIcons: [], mascot: 'on', mascotMet: false, mascotPos: null, mascotDone: { day: '', n: 0 } },
   }
 }
 
@@ -372,9 +379,7 @@ export function createPositsStore(initial: PersistedState) {
       set({
         stickers: { ...s.stickers, [id]: sticker },
         nextZ: s.nextZ + 1,
-        selectedStickerId: id,
-        selectedId: null,
-        editingId: null,
+        ...(opts.select === false ? {} : { selectedStickerId: id, selectedId: null, editingId: null }),
       })
       return id
     },
@@ -482,6 +487,27 @@ export function createPositsStore(initial: PersistedState) {
           recentIcons: [icon, ...s.settings.recentIcons.filter((i) => i !== icon)].slice(0, MAX_RECENT_ICONS),
         },
       }))
+    },
+
+    setMascotMode(mode) {
+      set((s) => (s.settings.mascot === mode ? s : { settings: { ...s.settings, mascot: mode } }))
+    },
+
+    countMascotDone(day) {
+      const cur = get().settings.mascotDone
+      const n = cur.day === day ? cur.n + 1 : 1
+      set((s) => ({ settings: { ...s.settings, mascotDone: { day, n } } }))
+      return n
+    },
+
+    setMascotPos(pos) {
+      set((s) => ({
+        settings: { ...s.settings, mascotPos: pos ? { x: clamp(pos.x, 0, 1), y: clamp(pos.y, 0, 1) } : null },
+      }))
+    },
+
+    markMascotMet() {
+      set((s) => (s.settings.mascotMet ? s : { settings: { ...s.settings, mascotMet: true } }))
     },
 
     pickColor(hex) {

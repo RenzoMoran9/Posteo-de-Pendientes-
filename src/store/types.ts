@@ -54,6 +54,9 @@ export interface Sticker {
   updatedAt: number
 }
 
+/** Chispa, la mascota: `on` habla y mira, `quiet` solo mira (no habla salvo que le toques), `off` está escondida. */
+export type MascotMode = 'on' | 'quiet' | 'off'
+
 /** Preferencias de ESTE dispositivo (no se sincronizarán). */
 export interface Settings {
   /** Imán suave a la cuadrícula al mover y redimensionar. */
@@ -62,6 +65,17 @@ export interface Settings {
   defaultColor: string
   /** Últimos íconos usados (el más reciente primero). */
   recentIcons: string[]
+  /** Cómo está la mascota en este dispositivo. */
+  mascot: MascotMode
+  /** Si ya se presentó (el saludo de la primera vez sale una sola vez). */
+  mascotMet: boolean
+  /**
+   * Dónde la dejó quien la arrastró: fracciones (0 a 1) del espacio libre de la pantalla (entre la barra de arriba y
+   * el estuche). `null` = su sitio de siempre, apoyada sobre el estuche.
+   */
+  mascotPos: { x: number; y: number } | null
+  /** Cuántos pendientes se han marcado hoy en este dispositivo (`day` = AAAA-MM-DD): la mascota lo celebra. */
+  mascotDone: { day: string; n: number }
 }
 
 export type SaveStatus = 'saved' | 'saving' | 'error'

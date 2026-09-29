@@ -67,6 +67,55 @@ describe('letra del posit al guardar y cargar', () => {
   })
 })
 
+describe('la mascota al guardar y cargar', () => {
+  const raw = () => JSON.parse(JSON.stringify(pickPersisted(createDefaultState(1))))
+
+  it('lo guardado antes de la mascota se abre con ella despierta y sin haberse presentado', () => {
+    const old = raw()
+    delete old.settings.mascot
+    delete old.settings.mascotMet
+    const back = parsePersisted(JSON.stringify(old))
+    expect(back?.settings).toMatchObject({ mascot: 'on', mascotMet: false })
+  })
+
+  it('recuerda si está callada u oculta, y descarta valores raros', () => {
+    for (const mode of ['on', 'quiet', 'off']) {
+      const d = raw()
+      d.settings.mascot = mode
+      d.settings.mascotMet = true
+      expect(parsePersisted(JSON.stringify(d))?.settings).toMatchObject({ mascot: mode, mascotMet: true })
+    }
+    const weird = raw()
+    weird.settings.mascot = 'gritando'
+    weird.settings.mascotMet = 'sí'
+    expect(parsePersisted(JSON.stringify(weird))?.settings).toMatchObject({ mascot: 'on', mascotMet: false })
+  })
+
+  it('recuerda cuántos pendientes se marcaron hoy y descarta datos raros', () => {
+    const d = raw()
+    expect(parsePersisted(JSON.stringify(d))?.settings.mascotDone).toEqual({ day: '', n: 0 })
+    d.settings.mascotDone = { day: '2026-09-29', n: 4.9 }
+    expect(parsePersisted(JSON.stringify(d))?.settings.mascotDone).toEqual({ day: '2026-09-29', n: 4 })
+    for (const bad of [{ day: 5, n: 1 }, { day: 'x', n: -1 }, { day: 'x' }, 'x', null]) {
+      d.settings.mascotDone = bad
+      expect(parsePersisted(JSON.stringify(d))?.settings.mascotDone).toEqual({ day: '', n: 0 })
+    }
+  })
+
+  it('recuerda dónde la dejaron, y repara o descarta posiciones raras', () => {
+    const d = raw()
+    expect(parsePersisted(JSON.stringify(d))?.settings.mascotPos).toBeNull()
+    d.settings.mascotPos = { x: 0.3, y: 0.7 }
+    expect(parsePersisted(JSON.stringify(d))?.settings.mascotPos).toEqual({ x: 0.3, y: 0.7 })
+    d.settings.mascotPos = { x: 5, y: -2 }
+    expect(parsePersisted(JSON.stringify(d))?.settings.mascotPos).toEqual({ x: 1, y: 0 })
+    for (const bad of [{ x: 'a', y: 1 }, { x: 1 }, 'x', [1, 2], null]) {
+      d.settings.mascotPos = bad
+      expect(parsePersisted(JSON.stringify(d))?.settings.mascotPos).toBeNull()
+    }
+  })
+})
+
 describe('íconos pegados al guardar y cargar', () => {
   const raw = () => JSON.parse(JSON.stringify(pickPersisted(createDefaultState(1))))
 

@@ -333,6 +333,50 @@ describe('íconos pegados', () => {
     expect(S().settings.recentIcons[0]).toBe('x29')
   })
 
+  it('un ícono nuevo puede pegarse sin quitarle la selección a quien está escribiendo', () => {
+    const note = notes()[0]
+    S().startEditing(note.id)
+    const id = S().addSticker({ icon: 'sirena', noteId: note.id, x: 10, y: 10, select: false })
+    expect(S().stickers[id]).toBeDefined()
+    expect(S().selectedId).toBe(note.id)
+    expect(S().editingId).toBe(note.id)
+    expect(S().selectedStickerId).toBeNull()
+    const other = S().addSticker({ icon: 'sol', x: 0, y: 0 })
+    expect(S().selectedStickerId).toBe(other)
+    expect(S().editingId).toBeNull()
+  })
+
+  it('la mascota: modo (habla / callada / oculta) y presentación se recuerdan en los ajustes', () => {
+    expect(S().settings.mascot).toBe('on')
+    expect(S().settings.mascotMet).toBe(false)
+    S().setMascotMode('quiet')
+    expect(S().settings.mascot).toBe('quiet')
+    S().setMascotMode('off')
+    expect(S().settings.mascot).toBe('off')
+    const same = S().settings
+    S().setMascotMode('off')
+    expect(S().settings).toBe(same) // sin cambio no se vuelve a guardar
+    S().markMascotMet()
+    expect(S().settings.mascotMet).toBe(true)
+  })
+
+  it('cuenta los pendientes marcados hoy y empieza de cero al cambiar de día', () => {
+    expect(S().countMascotDone('2026-09-29')).toBe(1)
+    expect(S().countMascotDone('2026-09-29')).toBe(2)
+    expect(S().settings.mascotDone).toEqual({ day: '2026-09-29', n: 2 })
+    expect(S().countMascotDone('2026-09-30')).toBe(1)
+  })
+
+  it('el sitio donde se deja a la mascota se guarda (entre 0 y 1) y se puede devolver a su lugar', () => {
+    expect(S().settings.mascotPos).toBeNull()
+    S().setMascotPos({ x: 0.25, y: 0.8 })
+    expect(S().settings.mascotPos).toEqual({ x: 0.25, y: 0.8 })
+    S().setMascotPos({ x: -3, y: 9 })
+    expect(S().settings.mascotPos).toEqual({ x: 0, y: 1 })
+    S().setMascotPos(null)
+    expect(S().settings.mascotPos).toBeNull()
+  })
+
   it('el panel de íconos se abre para el tablero o para el texto de un posit', () => {
     S().openIcons({ mode: 'board' })
     expect(S().iconPanel).toEqual({ mode: 'board' })
