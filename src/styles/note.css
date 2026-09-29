@@ -1,0 +1,283 @@
+/* ─────────── Posit realista ───────────
+   Papel de color con esquina doblada, cinta adhesiva y sombra suave.
+   Las medidas están en unidades del tablero: el posit se ve igual en PC y celular. */
+
+.note {
+  position: absolute;
+  left: 0;
+  top: 0;
+  touch-action: none;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.note.is-editing {
+  cursor: auto;
+}
+
+/* La sombra va en este contenedor (no en el papel) porque el papel está recortado
+   por clip-path y recortaría también su propia sombra. */
+.note-visual {
+  --fold: 30px;
+  position: relative;
+  filter: drop-shadow(0 1px 0.6px rgb(70 48 18 / 0.32)) drop-shadow(0 8px 9px rgb(70 48 18 / 0.17));
+  transition:
+    transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.25),
+    filter 0.2s ease;
+}
+
+.note[data-dragging] {
+  cursor: grabbing;
+}
+
+.note[data-dragging] .note-visual {
+  transform: scale(1.03) rotate(-0.8deg);
+  filter: drop-shadow(0 2px 1px rgb(70 48 18 / 0.26)) drop-shadow(0 20px 22px rgb(70 48 18 / 0.27));
+}
+
+.note.is-editing .note-visual {
+  filter: drop-shadow(0 1px 0.6px rgb(70 48 18 / 0.32)) drop-shadow(0 12px 16px rgb(70 48 18 / 0.25));
+}
+
+/* ── Papel ── */
+.paper {
+  position: relative;
+  min-height: var(--note-min-h, 216px);
+  padding: 40px 20px 36px 22px;
+  color: var(--note-ink);
+  background:
+    var(--grain),
+    linear-gradient(165deg, rgb(255 255 255 / 0.32) 0%, rgb(255 255 255 / 0) 46%, rgb(80 40 0 / 0.09) 100%),
+    var(--note-color);
+  /* esquina inferior derecha "doblada" */
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--fold)),
+    calc(100% - var(--fold)) 100%,
+    0 100%
+  );
+}
+
+/* Franja superior de agarre (para mover el posit sin pelear con el texto). */
+.paper-grip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 32px;
+}
+
+/* ── Esquina doblada: el reverso del papel, más claro, con su sombrita ── */
+.fold-wrap {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: var(--fold);
+  height: var(--fold);
+  pointer-events: none;
+  filter: drop-shadow(-1.5px -1.5px 2px rgb(60 30 0 / 0.3));
+}
+
+.fold {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--note-back-a) 0%, var(--note-back-b) 100%);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+/* ── Cinta adhesiva semitransparente ── */
+.tape {
+  position: absolute;
+  top: -14px;
+  left: calc(50% + var(--tape-x, 0%));
+  width: 100px;
+  height: 30px;
+  margin-left: -50px;
+  transform: rotate(var(--tape-rot, -2deg));
+  background:
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 0) 0 9px, rgb(255 255 255 / 0.12) 9px 10px),
+    linear-gradient(180deg, rgb(255 255 255 / 0.38), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.06)),
+    var(--tape-color, rgb(240 128 96 / 0.82));
+  /* bordes dentados, como cinta cortada a mano */
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    97% 12%,
+    100% 25%,
+    97% 37%,
+    100% 50%,
+    97% 62%,
+    100% 75%,
+    97% 88%,
+    100% 100%,
+    0 100%,
+    3% 88%,
+    0 75%,
+    3% 62%,
+    0 50%,
+    3% 37%,
+    0 25%,
+    3% 12%
+  );
+  cursor: grab;
+}
+
+/* Zona de agarre ampliada alrededor de la cinta (más fácil de tocar con el dedo). */
+.note-grip {
+  position: absolute;
+  top: -24px;
+  left: 14%;
+  right: 14%;
+  height: 36px;
+}
+
+/* ── Texto ── */
+.note-content {
+  position: relative;
+}
+
+.ProseMirror {
+  outline: none;
+  min-height: 1.3em;
+  font-family: var(--font-note);
+  font-size: 22px;
+  line-height: 1.28;
+  color: var(--note-ink);
+  caret-color: var(--note-ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.ProseMirror p {
+  margin: 0 0 0.3em;
+}
+
+.ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--note-ink);
+  opacity: 0.42;
+}
+
+.note.is-editing .ProseMirror {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
+.note.is-editing .ProseMirror ::selection,
+.note.is-editing .ProseMirror::selection {
+  background: rgb(52 110 200 / 0.28);
+}
+
+/* ── Selección y tiradores (se agrandan al alejar para seguir siendo tocables) ── */
+.selection-ring {
+  position: absolute;
+  inset: calc(-8px * var(--iz, 1));
+  border: calc(2px * var(--iz, 1)) dashed var(--ink);
+  border-radius: calc(7px * var(--iz, 1));
+  opacity: 0.8;
+  pointer-events: none;
+  filter: url(#rough-soft);
+}
+
+.note.is-editing .selection-ring {
+  border-style: solid;
+  opacity: 0.9;
+}
+
+.resize-handle {
+  position: absolute;
+  touch-action: none;
+}
+
+.resize-handle[data-resize='both'] {
+  right: calc(-30px * var(--iz, 1));
+  bottom: calc(-30px * var(--iz, 1));
+  width: calc(58px * var(--iz, 1));
+  height: calc(58px * var(--iz, 1));
+  cursor: nwse-resize;
+}
+
+.resize-handle[data-resize='both']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(20px * var(--iz, 1));
+  height: calc(20px * var(--iz, 1));
+  transform: translate(-50%, -50%);
+  background: var(--paper-white);
+  border: calc(2.5px * var(--iz, 1)) solid var(--ink);
+  border-radius: 40% 55% 45% 50%;
+  box-shadow: calc(1.5px * var(--iz, 1)) calc(2px * var(--iz, 1)) 0 var(--ink);
+}
+
+.resize-handle[data-resize='x'] {
+  right: calc(-14px * var(--iz, 1));
+  top: 18%;
+  bottom: 26%;
+  width: calc(28px * var(--iz, 1));
+  cursor: ew-resize;
+}
+
+.resize-handle[data-resize='y'] {
+  bottom: calc(-14px * var(--iz, 1));
+  left: 18%;
+  right: 26%;
+  height: calc(28px * var(--iz, 1));
+  cursor: ns-resize;
+}
+
+/* En pantallas táctiles basta el tirador de la esquina. */
+@media (pointer: coarse) {
+  .resize-handle[data-resize='x'],
+  .resize-handle[data-resize='y'] {
+    display: none;
+  }
+}
+
+/* ── Entrada: el posit "se pega" en el tablero ── */
+@keyframes note-in {
+  0% {
+    transform: scale(0.86) translateY(12px) rotate(-2.2deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.03) rotate(0.6deg);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes tape-in {
+  0% {
+    transform: rotate(var(--tape-rot, -2deg)) translateY(-16px) scaleX(0.4);
+    opacity: 0;
+  }
+  100% {
+    transform: rotate(var(--tape-rot, -2deg));
+    opacity: 1;
+  }
+}
+
+.note.is-fresh .note-visual {
+  animation: note-in 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards;
+}
+
+.note.is-fresh .tape {
+  animation: tape-in 0.3s 0.2s ease-out backwards;
+}

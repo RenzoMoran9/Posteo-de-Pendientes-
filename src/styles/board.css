@@ -1,0 +1,83 @@
+/* ─────────── Tablero: hoja de cuaderno cuadriculada ─────────── */
+
+.board {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  cursor: default;
+  background-color: var(--paper);
+  /* Las líneas finas se desvanecen al alejar (ver board/view.ts). El tamaño y la
+     posición los escribe el controlador de vista en cada movimiento. */
+  background-image:
+    linear-gradient(to right, rgb(var(--grid-rgb) / 0.3) 1.5px, transparent 1.5px),
+    linear-gradient(to bottom, rgb(var(--grid-rgb) / 0.3) 1.5px, transparent 1.5px),
+    linear-gradient(to right, rgb(var(--grid-rgb) / calc(0.17 * var(--minor-a, 1))) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--grid-rgb) / calc(0.17 * var(--minor-a, 1))) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+}
+
+/* Grano de papel y viñeta suave (quedan debajo de los posits). */
+.board::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(130% 100% at 50% 38%, transparent 55%, rgb(150 110 50 / 0.13) 100%),
+    var(--grain);
+  opacity: 0.55;
+}
+
+.board[data-panning] {
+  cursor: grabbing;
+}
+
+.world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+/* Solo mientras se pellizca o arrastra: así el texto se re-dibuja nítido al soltar. */
+.world[data-gesturing] {
+  will-change: transform;
+}
+
+/* La primera vez, los posits aparecen ya encuadrados (sin "saltos" mientras cargan las letras). */
+.world:not([data-ready]) {
+  opacity: 0;
+}
+
+.world {
+  transition: opacity 0.25s ease;
+}
+
+.empty-hint {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  color: var(--ink-soft);
+}
+
+.empty-title {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.empty-sub {
+  margin-top: 8px;
+  font-size: 20px;
+}

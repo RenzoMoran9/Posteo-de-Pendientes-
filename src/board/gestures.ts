@@ -1,0 +1,432 @@
+import { GRID, MAX_ZOOM, MIN_ZOOM, clamp, magnet, type View } from '../lib/geometry'
+import { NOTE_LIMITS, store } from '../store/store'
+import { addNoteAtClient, persistViewSoon } from './actions'
+import { beginEditing, endEditing } from './editors'
+import { view } from './view'
+
+type Axis = 'both' | 'x' | 'y'
+
+interface Tracked {
+  x: number
+  y: number
+  /** El navegador se encarga (escribir dentro del texto, casillas…): no lo tocamos. */
+  native: boolean
+}
+
+type NotePress = {
+  kind: 'note'
+  pid: number
+  type: string
+  sx: number
+  sy: number
+  moved: boolean
+  id: string
+  el: HTMLElement
+  inZone: boolean
+  x0: number
+  y0: number
+  x: number
+  y: number
+}
+
+type Press =
+  | { kind: 'pan'; pid: number; type: string; sx: number; sy: number; lx: number; ly: number; moved: boolean }
+  | NotePress
+  | {
+      kind: 'resize'
+      pid: number
+      sx: number
+      sy: number
+      id: string
+      el: HTMLElement
+      axis: Axis
+      w0: number
+      h0: number
+      w: number
+      h: number
+    }
+
+/** Cuánto se puede mover el dedo (o el ratón) y seguir contando como "toque". */
+const slop = (type: string): number => (type === 'mouse' ? 4 : 10)
+const DOUBLE_MS = 340
+
+/**
+ * Motor de gestos del tablero:
+ *  - un dedo / ratón sobre el fondo → desplaza el tablero
+ *  - dos dedos → zoom y desplazamiento a la vez
+ *  - sobre un posit → tocar selecciona, tocar de nuevo escribe, arrastrar lo mueve
+ *  - sobre un tirador → cambia el tamaño
+ *  - rueda: desplaza; Ctrl/⌘ + rueda (o pellizco en el trackpad): zoom
+ */
+export function attachGestures(board: HTMLElement, world: HTMLElement): () => void {
+  const pointers = new Map<number, Tracked>()
+  let press: Press | null = null
+  let pinch: { d0: number; cx: number; cy: number; v0: View } | null = null
+  let ignoreUntilUp = false
+  let lastEmptyTap = { t: 0, x: 0, y: 0 }
+
+  const setGesturing = (on: boolean) => {
+    if (on) world.setAttribute('data-gesturing', '')
+    else world.removeAttribute('data-gesturing')
+  }
+  const capture = (id: number) => {
+    try {
+      board.setPointerCapture(id)
+    } catch {
+      /* el puntero ya se soltó */
+    }
+  }
+  const release = (id: number) => {
+    try {
+      board.releasePointerCapture(id)
+    } catch {
+      /* nada que soltar */
+    }
+  }
+
+  function hitInfo(target: EventTarget | null) {
+    const el = target instanceof Element ? target : null
+    const noteEl = el?.closest<HTMLElement>('[data-note-id]') ?? null
+    if (!el || !noteEl) return null
+    return {
+      noteEl,
+      id: noteEl.dataset.noteId as string,
+      axis: el.closest<HTMLElement>('[data-resize]')?.dataset.resize as Axis | undefined,
+      noDrag: !!el.closest('[data-no-drag]'),
+      inText: !!el.closest('.ProseMirror'),
+      inZone: !!el.closest('[data-drag-zone]'),
+    }
+  }
+
+  function selectNote(id: string) {
+    const s = store.getState()
+    if (s.editingId && s.editingId !== id) endEditing()
+    store.getState().select(id)
+  }
+
+  // ───────────────────────── pinch ─────────────────────────
+
+  function pair(): [Tracked, Tracked] {
+    const it = pointers.values()
+    return [it.next().value as Tracked, it.next().value as Tracked]
+  }
+
+  function beginPinch() {
+    if (press) {
+      const pr = press
+      press = null
+      release(pr.pid)
+      finish(pr, null, false)
+    }
+    const [a, b] = pair()
+    const r = view.rect()
+    pinch = {
+      d0: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+      cx: (a.x + b.x) / 2 - r.left,
+      cy: (a.y + b.y) / 2 - r.top,
+      v0: { ...view.get() },
+    }
+    setGesturing(true)
+  }
+
+  function updatePinch() {
+    if (!pinch) return
+    const [a, b] = pair()
+    const r = view.rect()
+    const d = Math.hypot(a.x - b.x, a.y - b.y)
+    const mx = (a.x + b.x) / 2 - r.left
+    const my = (a.y + b.y) / 2 - r.top
+    const z = clamp(pinch.v0.z * (d / pinch.d0), MIN_ZOOM, MAX_ZOOM)
+    const bx = (pinch.cx - pinch.v0.x) / pinch.v0.z
+    const by = (pinch.cy - pinch.v0.y) / pinch.v0.z
+    view.set({ x: mx - bx * z, y: my - by * z, z })
+  }
+
+  function endPinch() {
+    pinch = null
+    setGesturing(false)
+    persistViewSoon()
+    // el dedo que queda no debe mover el tablero de golpe
+    ignoreUntilUp = pointers.size > 0
+  }
+
+  // ───────────────────────── press begin ─────────────────────────
+
+  function beginPan(e: PointerEvent) {
+    press = {
+      kind: 'pan',
+      pid: e.pointerId,
+      type: e.pointerType,
+      sx: e.clientX,
+      sy: e.clientY,
+      lx: e.clientX,
+      ly: e.clientY,
+      moved: false,
+    }
+    capture(e.pointerId)
+  }
+
+  function beginNotePress(e: PointerEvent, el: HTMLElement, id: string, inZone: boolean) {
+    const n = store.getState().notes[id]
+    if (!n) return
+    press = {
+      kind: 'note',
+      pid: e.pointerId,
+      type: e.pointerType,
+      sx: e.clientX,
+      sy: e.clientY,
+      moved: false,
+      id,
+      el,
+      inZone,
+      x0: n.x,
+      y0: n.y,
+      x: n.x,
+      y: n.y,
+    }
+    capture(e.pointerId)
+  }
+
+  function beginResize(e: PointerEvent, el: HTMLElement, id: string, axis: Axis) {
+    const r = el.getBoundingClientRect()
+    const z = view.get().z
+    press = {
+      kind: 'resize',
+      pid: e.pointerId,
+      sx: e.clientX,
+      sy: e.clientY,
+      id,
+      el,
+      axis,
+      w0: r.width / z,
+      h0: r.height / z,
+      w: r.width / z,
+      h: r.height / z,
+    }
+    setGesturing(true)
+    capture(e.pointerId)
+  }
+
+  // ───────────────────────── events ─────────────────────────
+
+  function onPointerDown(e: PointerEvent) {
+    if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1) return
+
+    const hit = hitInfo(e.target)
+    const editingHere = hit ? store.getState().editingId === hit.id : false
+    const native = !!hit && (hit.noDrag || (editingHere && hit.inText && !hit.inZone))
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, native })
+
+    if (pointers.size >= 2) {
+      if (pointers.size === 2 && !pinch) beginPinch()
+      return
+    }
+    if (ignoreUntilUp || native) return
+
+    if (e.pointerType === 'mouse' && e.button === 1) {
+      beginPan(e)
+      e.preventDefault()
+      return
+    }
+
+    if (hit) {
+      if (hit.axis) beginResize(e, hit.noteEl, hit.id, hit.axis)
+      else beginNotePress(e, hit.noteEl, hit.id, hit.inZone)
+    } else {
+      beginPan(e)
+    }
+    e.preventDefault()
+  }
+
+  function onPointerMove(e: PointerEvent) {
+    const p = pointers.get(e.pointerId)
+    if (!p) return
+    p.x = e.clientX
+    p.y = e.clientY
+    if (pinch) {
+      updatePinch()
+      return
+    }
+    if (p.native || ignoreUntilUp) return
+
+    const pr = press
+    if (!pr || pr.pid !== e.pointerId) return
+
+    if (pr.kind === 'pan') {
+      if (!pr.moved) {
+        if (Math.hypot(e.clientX - pr.sx, e.clientY - pr.sy) < slop(pr.type)) return
+        pr.moved = true
+        board.setAttribute('data-panning', '')
+        setGesturing(true)
+      }
+      const dx = e.clientX - pr.lx
+      const dy = e.clientY - pr.ly
+      pr.lx = e.clientX
+      pr.ly = e.clientY
+      view.panBy(dx, dy)
+      return
+    }
+
+    const dx = e.clientX - pr.sx
+    const dy = e.clientY - pr.sy
+    const z = view.get().z
+    const snap = store.getState().settings.magnet
+    const tol = 9 / z
+
+    if (pr.kind === 'note') {
+      if (!pr.moved) {
+        if (Math.hypot(dx, dy) < slop(pr.type)) return
+        pr.moved = true
+        selectNote(pr.id)
+        pr.el.setAttribute('data-dragging', '')
+        setGesturing(true)
+      }
+      let nx = pr.x0 + dx / z
+      let ny = pr.y0 + dy / z
+      if (snap) {
+        nx = magnet(nx, GRID, tol)
+        ny = magnet(ny, GRID, tol)
+      }
+      pr.x = nx
+      pr.y = ny
+      pr.el.style.transform = `translate(${nx}px, ${ny}px)`
+      return
+    }
+
+    // resize
+    let w = pr.w0 + (pr.axis !== 'y' ? dx / z : 0)
+    let h = pr.h0 + (pr.axis !== 'x' ? dy / z : 0)
+    w = clamp(w, NOTE_LIMITS.minW, NOTE_LIMITS.maxW)
+    h = clamp(h, NOTE_LIMITS.minH, NOTE_LIMITS.maxH)
+    if (snap) {
+      w = magnet(w, GRID, tol)
+      h = magnet(h, GRID, tol)
+    }
+    pr.w = w
+    pr.h = h
+    pr.el.style.width = `${w}px`
+    pr.el.style.setProperty('--note-min-h', `${h}px`)
+  }
+
+  function onPointerUp(e: PointerEvent) {
+    const p = pointers.get(e.pointerId)
+    if (!p) return
+    pointers.delete(e.pointerId)
+
+    if (pinch) {
+      if (pointers.size < 2) endPinch()
+      return
+    }
+    if (ignoreUntilUp) {
+      if (pointers.size === 0) ignoreUntilUp = false
+      return
+    }
+    if (p.native) return
+
+    const pr = press
+    if (!pr || pr.pid !== e.pointerId) return
+    press = null
+    release(e.pointerId)
+    finish(pr, e, e.type === 'pointercancel')
+  }
+
+  /** Cierra un gesto: confirma posición/tamaño en el almacén o interpreta el toque. */
+  function finish(pr: Press, e: PointerEvent | null, cancelled: boolean) {
+    if (pr.kind === 'pan') {
+      board.removeAttribute('data-panning')
+      setGesturing(false)
+      if (pr.moved) {
+        persistViewSoon()
+        return
+      }
+      if (cancelled || !e) return
+      const now = performance.now()
+      const dbl =
+        e.pointerType === 'mouse' &&
+        now - lastEmptyTap.t < DOUBLE_MS &&
+        Math.hypot(e.clientX - lastEmptyTap.x, e.clientY - lastEmptyTap.y) < 8
+      lastEmptyTap = { t: now, x: e.clientX, y: e.clientY }
+      if (dbl) {
+        addNoteAtClient(e.clientX, e.clientY)
+        return
+      }
+      endEditing()
+      store.getState().select(null)
+      return
+    }
+
+    if (pr.kind === 'note') {
+      pr.el.removeAttribute('data-dragging')
+      setGesturing(false)
+      if (pr.moved) {
+        store.getState().patchNote(pr.id, { x: pr.x, y: pr.y })
+        return
+      }
+      if (cancelled || !e) return
+      const s = store.getState()
+      if (s.editingId === pr.id) return
+      if (s.selectedId === pr.id && !pr.inZone) {
+        beginEditing(pr.id, { x: e.clientX, y: e.clientY })
+        return
+      }
+      selectNote(pr.id)
+      return
+    }
+
+    setGesturing(false)
+    store.getState().patchNote(pr.id, { w: pr.w, h: pr.h })
+  }
+
+  function onWheel(e: WheelEvent) {
+    e.preventDefault()
+    const k = e.deltaMode === 1 ? 16 : 1
+    if (e.ctrlKey || e.metaKey) {
+      const dy = clamp(e.deltaY * k, -120, 120)
+      view.zoomAtClient(e.clientX, e.clientY, view.get().z * Math.exp(-dy * 0.0022))
+    } else if (e.shiftKey && e.deltaX === 0) {
+      view.panBy(-e.deltaY * k, 0)
+    } else {
+      view.panBy(-e.deltaX * k, -e.deltaY * k)
+    }
+    persistViewSoon()
+  }
+
+  function onContextMenu(e: Event) {
+    const t = e.target as Element | null
+    if (!t?.closest('.ProseMirror[contenteditable="true"]')) e.preventDefault()
+  }
+
+  const stopPageZoom = (e: Event) => e.preventDefault()
+
+  function reset() {
+    pointers.clear()
+    press = null
+    pinch = null
+    ignoreUntilUp = false
+    setGesturing(false)
+    board.removeAttribute('data-panning')
+  }
+
+  board.addEventListener('pointerdown', onPointerDown)
+  board.addEventListener('pointermove', onPointerMove)
+  board.addEventListener('pointerup', onPointerUp)
+  board.addEventListener('pointercancel', onPointerUp)
+  board.addEventListener('wheel', onWheel, { passive: false })
+  board.addEventListener('contextmenu', onContextMenu)
+  // Safari (iOS/macOS) haría zoom de toda la página con el pellizco.
+  document.addEventListener('gesturestart', stopPageZoom, { passive: false })
+  document.addEventListener('gesturechange', stopPageZoom, { passive: false })
+  window.addEventListener('blur', reset)
+
+  return () => {
+    board.removeEventListener('pointerdown', onPointerDown)
+    board.removeEventListener('pointermove', onPointerMove)
+    board.removeEventListener('pointerup', onPointerUp)
+    board.removeEventListener('pointercancel', onPointerUp)
+    board.removeEventListener('wheel', onWheel)
+    board.removeEventListener('contextmenu', onContextMenu)
+    document.removeEventListener('gesturestart', stopPageZoom)
+    document.removeEventListener('gesturechange', stopPageZoom)
+    window.removeEventListener('blur', reset)
+  }
+}

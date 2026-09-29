@@ -1,0 +1,34 @@
+:root {
+  /* Papel de cuaderno */
+  --paper: #fbf5e4;
+  --paper-deep: #f1e6c8;
+  --paper-white: #fffdf6;
+  --grid-rgb: 88 122 156;
+
+  /* Tinta */
+  --ink: #2b2723;
+  --ink-soft: #6a6157;
+
+  /* Acentos */
+  --accent: #ee6a55;
+  --accent-deep: #d24c3a;
+  --accent-ink: #fffaf0;
+  --danger: #c9402f;
+  --ok: #3f8f64;
+
+  /* Letras manuscritas (autoalojadas, se ven igual en PC y celular) */
+  --font-ui: 'Patrick Hand', 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', system-ui, sans-serif;
+  --font-title: 'Caveat', 'Segoe Script', 'Brush Script MT', cursive;
+  --font-note: 'Patrick Hand', 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', system-ui, sans-serif;
+
+  /* Bordes "a mano": radios distintos en cada esquina */
+  --hand-radius: 16px 20px 14px 22px / 20px 14px 22px 16px;
+
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+
+  /* Grano de papel (SVG propio, sin imágenes externas) */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .2 0 0 0 0 .08 .9 0 0 0 -.4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
