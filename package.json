@@ -15,6 +15,7 @@
     "icons:sheet": "node scripts/icons/sheet.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.129.0",
     "@fontsource/architects-daughter": "^5.3.0",
     "@fontsource/caveat": "^5.3.0",
     "@fontsource/covered-by-your-grace": "^5.3.0",

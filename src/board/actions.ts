@@ -1,3 +1,4 @@
+import type { JSONContent } from '@tiptap/core'
 import { boundsOf, findFreeSpot, fitView, rotatedSquare, stepAngle, type Rect } from '../lib/geometry'
 import { NOTE_DEFAULTS, STICKER_DEFAULTS, stickersOfNote, store } from '../store/store'
 import { insertIconInNote } from './editors'
@@ -36,6 +37,22 @@ export function addNoteAtCenter(): void {
     view.ensureVisible({ x: n.x, y: n.y, w: n.w, h: n.h })
     persistViewSoon()
   }
+}
+
+/**
+ * Un posit que nace con el texto ya escrito (lo crea la conversación con Claude): cerca del centro de lo que se ve,
+ * en el hueco libre más cercano y sin abrir el teclado.
+ */
+export function addNoteWithContent(doc: JSONContent, color?: string): string {
+  const { w, h } = NOTE_DEFAULTS
+  const c = view.visibleCenter()
+  const id = store.getState().addNote({ x: c.x - w / 2, y: c.y - h / 2, w, h, doc, color, avoid: measuredRects() })
+  const n = store.getState().notes[id]
+  if (n) {
+    view.ensureVisible({ x: n.x, y: n.y, w: n.w, h: n.h })
+    persistViewSoon()
+  }
+  return id
 }
 
 /** Doble clic en el fondo: el posit nace justo donde se hizo clic. */

@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react'
 import { Board } from './board/Board'
 import { kbdProxy } from './board/kbd'
+import { ChatPanel } from './chat/ChatPanel'
 import { useChromeInsets } from './hooks/useChromeInsets'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useVisualViewport } from './hooks/useVisualViewport'
@@ -30,6 +31,7 @@ export default function App() {
       <Board />
       <TopBar ref={topRef} />
       <Mascot />
+      <ChatPanel />
       <div className="dock" ref={dockRef}>
         <Toast />
         <ContextBar />

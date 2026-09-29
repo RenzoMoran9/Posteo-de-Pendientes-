@@ -1,5 +1,6 @@
 import { cornerSlot } from '../board/actions'
 import { getEditor } from '../board/editors'
+import { chat } from '../chat/chatStore'
 import { stickersOfNote, store, type Store } from '../store/store'
 import type { MascotMode } from '../store/types'
 import { factsOf, openTasksOf, tagsOf, type NoteFacts, type Tag } from './analyze'
@@ -21,8 +22,8 @@ const LONG_SLEEP_MS = 5 * 60_000
 const mode = (): MascotMode => store.getState().settings.mascot
 const ui = () => mascotStore.getState()
 
-/** Solo habla en modo «habla», con la pestaña a la vista y despierta. */
-const chatty = (): boolean => mode() === 'on' && !document.hidden && !ui().asleep
+/** Solo habla en modo «habla», con la pestaña a la vista, despierta y sin la conversación abierta (ahí ya se habla de verdad). */
+const chatty = (): boolean => mode() === 'on' && !document.hidden && !ui().asleep && !chat.getState().open
 
 // ───────────── lo que sabe del tablero ─────────────
 
@@ -142,6 +143,8 @@ function activity(): void {
 
 function tick(): void {
   const now = Date.now()
+  // mientras espera o lee la respuesta de Claude no se duerme
+  if (chat.getState().open && chat.getState().status !== 'idle') lastActivity = now
   if (mode() !== 'off' && !ui().asleep && now - lastActivity > SLEEP_AFTER_MS) {
     sleptAt = now
     ui().sleep(true)

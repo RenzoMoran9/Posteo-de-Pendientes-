@@ -1,13 +1,14 @@
 import { useEffect, useRef } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent, RefObject } from 'react'
 import { getEditor } from '../board/editors'
+import { chat, useChat } from '../chat/chatStore'
 import { useCoarsePointer } from '../hooks/useCoarsePointer'
 import { store, useStore } from '../store/store'
 import { Bubble } from './Bubble'
 import { ClawdArt, ClawdPeek, type MascotRefs } from './ClawdArt'
 import { POINTER_MEMORY_MS, isDoubleBlink, lookAt, nextBlinkDelay, type Pt } from './gaze'
 import { mascotStore, useMascot } from './mascotStore'
-import { poke, setMode, startMascotBrain } from './watch'
+import { setMode, startMascotBrain } from './watch'
 
 /**
  * La vida de la mascota: mira al cursor (o al dedo), y si hace rato que no lo mueves, al cursor de escritura, al posit
@@ -46,9 +47,17 @@ function useLife(refs: MascotRefs, root: RefObject<HTMLElement | null>, active: 
       const r = n.getBoundingClientRect()
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
     }
+    /** Con la conversación abierta, mira hacia donde se escribe (el campo de texto, o el panel si no hay campo). */
+    const centerOfChat = (): Pt | null => {
+      const c = document.querySelector('[data-chat-input]') ?? document.querySelector('[data-chat]')
+      if (!c) return null
+      const r = c.getBoundingClientRect()
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+    }
     const target = (): Pt | null => {
       const now = performance.now()
       if (pointer && now - pointer.at < POINTER_MEMORY_MS) return pointer
+      if (chat.getState().open) return centerOfChat()
       const s = store.getState()
       if (s.editingId) return caret() ?? centerOfNote(s.editingId)
       if (s.selectedId) return centerOfNote(s.selectedId)
@@ -152,6 +161,7 @@ export function Mascot() {
   const talking = useMascot((s) => s.talking)
   const hops = useMascot((s) => s.hops)
   const bubble = useMascot((s) => s.bubble)
+  const chatOpen = useChat((s) => s.open)
 
   const rootRef = useRef<HTMLDivElement>(null)
   const refs = useRef<MascotRefs>({ tilt: { current: null }, anchor: { current: null }, eyes: { current: null } }).current
@@ -225,20 +235,21 @@ export function Mascot() {
       data-hop={hops === 0 ? undefined : hops % 2 === 0 ? 'b' : 'a'}
       data-compact={editing && coarse ? '1' : undefined}
       data-quiet={mode === 'quiet' ? '1' : undefined}
+      data-chat={chatOpen ? '1' : undefined}
       data-custom={custom ? '' : undefined}
     >
       {bubble && <Bubble key={bubble.id} bubble={bubble} side={custom && pos.x < 0.5 ? 'left' : 'right'} />}
       <button
         type="button"
         className="mascot-figure"
-        aria-label="Claude, tu asistente (mascota). Tócala para que te diga algo; arrástrala para moverla"
+        aria-label="Claude, tu asistente (mascota). Tócala para conversar; arrástrala para moverla"
         onMouseDown={(e) => e.preventDefault()}
         onPointerDown={down}
         onPointerMove={move}
         onPointerUp={up}
         onPointerCancel={up}
         onClick={() => {
-          if (!justDragged.current) poke()
+          if (!justDragged.current) chat.getState().toggle()
         }}
       >
         <ClawdArt refs={refs} />

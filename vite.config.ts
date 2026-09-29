@@ -9,7 +9,7 @@ export default defineConfig({
   build: {
     target: 'es2020',
     sourcemap: false,
-    chunkSizeWarningLimit: 900,
+    chunkSizeWarningLimit: 1000,
   },
   test: {
     environment: 'node',

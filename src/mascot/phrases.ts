@@ -128,7 +128,7 @@ export const PHRASES = {
   },
   welcome: {
     mood: 'happy',
-    lines: ['¡Hola! Soy la mascota de Claude. Miro lo que escribes y te doy una mano. Tócame cuando quieras.'],
+    lines: ['¡Hola! Soy la mascota de Claude. Miro lo que escribes y te doy una mano. Tócame y hablamos de tus pendientes.'],
   },
   wake: { mood: 'surprised', lines: ['¡Uy! Me dormí un ratito. ¿Seguimos?', 'Ya desperté. ¿Qué toca ahora?'] },
   nudge: {

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { addNoteAtCenter, fitAll, resetZoom, rotateSticker, zoomBy } from '../board/actions'
 import { beginEditing, endEditing } from '../board/editors'
+import { chat } from '../chat/chatStore'
 import { GRID } from '../lib/geometry'
 import { STICKER_LIMITS, store } from '../store/store'
 
@@ -60,6 +61,8 @@ export function useKeyboardShortcuts(): void {
       } else if (!mod && (e.key === 'i' || e.key === 'I')) {
         if (s.iconPanel) s.closeIcons()
         else s.openIcons({ mode: 'board' })
+      } else if (!mod && (e.key === 'c' || e.key === 'C')) {
+        chat.getState().toggle()
       } else if (!mod && (e.key === 'n' || e.key === 'N')) {
         addNoteAtCenter()
       } else if (!mod && (e.key === '+' || e.key === '=')) {
