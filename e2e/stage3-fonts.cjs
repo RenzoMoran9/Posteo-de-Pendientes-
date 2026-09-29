@@ -10,12 +10,12 @@ const { check, near, centerOf, shot, getState, open, waitSaved, consoleErrors, f
 
 const FONTS = [
   ['kalam', 'Pluma', 'Kalam', 1],
-  ['caveat', 'Rápida', 'Caveat', 1.3],
-  ['patrick', 'Cuaderno', 'Patrick Hand', 1.08],
-  ['architects', 'Plano', 'Architects Daughter', 1.04],
-  ['gochi', 'Redonda', 'Gochi Hand', 1.02],
-  ['covered', 'Marcador fino', 'Covered By Your Grace', 1.08],
-  ['altura', 'Alta y angosta', 'Just Another Hand', 1.25],
+  ['caveat', 'Bolígrafo', 'Caveat', 1.3],
+  ['patrick', 'Lápiz', 'Patrick Hand', 1.08],
+  ['architects', 'Punta fina', 'Architects Daughter', 1.04],
+  ['gochi', 'Pincel', 'Gochi Hand', 1.02],
+  ['covered', 'Marcador', 'Covered By Your Grace', 1.08],
+  ['altura', 'Portaminas', 'Just Another Hand', 1.25],
   ['marker', 'Marcador grueso', 'Permanent Marker', 0.86],
 ]
 
@@ -69,7 +69,7 @@ async function desktop(browser, url) {
   check('…marcando la que tiene ahora («Pluma»)', (await font('kalam').getAttribute('aria-checked')) === 'true')
   check('…sin los botones de negrita / cursiva / subrayado (no se está escribiendo)', (await pop.locator('.fmt-mark').count()) === 0)
   const names = await pop.locator('.fmt-name').allTextContents()
-  check('cada letra se muestra con su nombre y una muestra escrita con ella', names.length === 8 && names.includes('Rápida') && (await pop.locator('.fmt-sample').first().evaluate((e) => getComputedStyle(e).fontFamily.startsWith('Kalam'))))
+  check('cada letra se muestra con su nombre y una muestra escrita con ella', names.length === 8 && names.includes('Bolígrafo') && (await pop.locator('.fmt-sample').first().evaluate((e) => getComputedStyle(e).fontFamily.startsWith('Kalam'))))
   await shot(page, 's3f-pc-01-selector')
 
   // 2 · Elegir cada letra: se aplica al posit, con el tamaño ajustado, y el tachado de lápiz sigue en su renglón

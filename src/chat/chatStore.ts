@@ -11,7 +11,7 @@ import { buildSystem, buildTurns, type HistoryMsg, type ProposalState } from './
 import { parseBlocks, splitReply, visibleWhileStreaming } from './protocol'
 import { DEFAULT_SETTINGS, clearKey, loadKey, loadSettings, saveKey, saveSettings, type ClaudeSettings } from './settings'
 import { makeApiTransport } from './transports/api'
-import { findSample, sampleTransport } from './transports/sample'
+import { findSample, insideClaudeHost, sampleTransport } from './transports/sample'
 import type { Transport } from './transports/types'
 import { speak, stopSpeaking } from './voice'
 
@@ -58,12 +58,19 @@ export interface ChatState {
   hasKey: boolean
   /** ¿Se puede usar la cuenta de Claude del enlace de prueba? `null` = aún se averigua. */
   sampleOk: boolean | null
+  /** La página corre dentro de un visor de Claude (enlace de prueba): la clave propia no puede funcionar ahí. */
+  host: boolean
   /** Con cuál conexión se contestaría ahora. */
   via: Via
+  /** Lo que se está escribiendo en el campo (se conserva si se cierra el panel). */
+  draft: string
 
   setOpen(open: boolean): void
   toggle(): void
   showSettings(on: boolean): void
+  setDraft(text: string): void
+  /** Abre la conversación con una pregunta: la envía, o la deja escrita si aún falta aceptar el aviso de privacidad. */
+  ask(prompt: string): void
   send(text: string): Promise<void>
   stop(): void
   clear(): void
@@ -86,6 +93,7 @@ export interface ChatDeps {
   sample: Transport
   api: Transport
   detectSample: () => Promise<boolean>
+  insideHost: () => boolean
   /** Guardar y leer en este dispositivo (se apaga en las pruebas). */
   persist: boolean
 }
@@ -139,6 +147,7 @@ export function createChatStore(deps: Partial<ChatDeps> = {}) {
     sample: sampleTransport,
     api: makeApiTransport({ getKey: loadKey }),
     detectSample: async () => !!(await findSample()),
+    insideHost: insideClaudeHost,
     persist: true,
     ...deps,
   }
@@ -155,7 +164,8 @@ export function createChatStore(deps: Partial<ChatDeps> = {}) {
     const patchProposal = (id: string, p: Partial<ProposalData>): void =>
       patchMessage(id, (m) => (m.proposal ? { ...m, proposal: { ...m.proposal, ...p } } : m))
 
-    const recomputeVia = (): Via => viaOf(get().sampleOk && !sampleBlocked, get().hasKey)
+    const host = d.insideHost()
+    const recomputeVia = (): Via => viaOf(get().sampleOk && !sampleBlocked, get().hasKey && !host)
 
     /** Termina un mensaje de Claude: quita el «escribiendo», separa el texto de las acciones y arma la propuesta. */
     function finish(id: string, fullText: string, via: Via, opts: { truncated?: boolean; snap: SnapNotes; extra?: unknown[]; info?: string }): string {
@@ -193,6 +203,7 @@ export function createChatStore(deps: Partial<ChatDeps> = {}) {
         messages: [...s0.messages, { id: uid(), role: 'user', text, at: now }, { id: asstId, role: 'assistant', text: '', at: now, streaming: true }],
         status: 'waiting',
         view: 'chat',
+        draft: '',
       })
       mascot().sleep(false)
       mascot().hush()
@@ -290,7 +301,7 @@ export function createChatStore(deps: Partial<ChatDeps> = {}) {
       } catch {
         ok = false
       }
-      set((s) => ({ sampleOk: ok, via: viaOf(ok && !sampleBlocked, s.hasKey) }))
+      set((s) => ({ sampleOk: ok, via: viaOf(ok && !sampleBlocked, s.hasKey && !host) }))
     }
 
     const settings = d.persist ? loadSettings() : { ...DEFAULT_SETTINGS }
@@ -304,8 +315,10 @@ export function createChatStore(deps: Partial<ChatDeps> = {}) {
       status: 'idle',
       settings,
       hasKey,
+      draft: '',
       sampleOk: null,
-      via: viaOf(null, hasKey),
+      host,
+      via: viaOf(null, hasKey && !host),
 
       setOpen(open) {
         if (get().open === open) return
@@ -318,6 +331,14 @@ export function createChatStore(deps: Partial<ChatDeps> = {}) {
       },
       toggle: () => get().setOpen(!get().open),
       showSettings: (on) => set({ view: on ? 'settings' : 'chat' }),
+      setDraft: (text) => set({ draft: text }),
+      ask(prompt) {
+        get().setOpen(true)
+        const s = get()
+        if (s.status !== 'idle') return
+        if (s.settings.consented === null && s.via !== 'local') set({ draft: prompt })
+        else void s.send(prompt)
+      },
       send,
 
       stop() {
@@ -385,7 +406,7 @@ export function createChatStore(deps: Partial<ChatDeps> = {}) {
         if (!k) return
         sampleBlocked = false
         if (d.persist) saveKey(k, get().settings.remember)
-        set({ hasKey: true, via: viaOf(get().sampleOk, true) })
+        set({ hasKey: true, via: viaOf(get().sampleOk, !host) })
       },
 
       forgetApiKey() {

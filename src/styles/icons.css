@@ -452,11 +452,10 @@
   }
 }
 
-/* El botón de íconos del estuche: una hojita crema con un destello, para que se vea el dibujo a color. */
+/* El botón de íconos del estuche: el destello a color sobre la placa oscura (los trazos claros, para que se lean). */
 .icons-btn {
-  background: var(--paper-white);
-  --icon-ink: var(--ink);
-  --icon-line: 3;
+  --icon-ink: #e9eef3;
+  --icon-line: 2.8;
 }
 
 .icons-btn .ic-box {
@@ -476,8 +475,4 @@
   width: 100%;
   height: 100%;
   filter: none;
-}
-
-.icons-btn[aria-expanded='true'] {
-  background: #ffe9b0;
 }

@@ -53,6 +53,13 @@ describe('buildSnapshot', () => {
     expect(text).toContain('    1. • idea')
   })
 
+  it('marca cuál es el posit seleccionado (para entender «este posit»)', () => {
+    const { text } = buildSnapshot(s, { selectedId: 'b', now: NOW })
+    expect(text).toContain('[n2] posit Rojo · SELECCIONADO · 1 de 2 pendientes hechos')
+    expect(text).not.toContain('[n1] posit Amarillo · SELECCIONADO')
+    expect(buildSnapshot(s, { now: NOW }).text).not.toContain('SELECCIONADO')
+  })
+
   it('un posit vacío se dice vacío', () => {
     expect(buildSnapshot(board([{ id: 'x' }]), { now: NOW }).text).toContain('[n1] posit Amarillo\n  (vacío)')
     expect(buildSnapshot(board([]), { now: NOW }).text).toContain('El tablero está vacío.')
@@ -95,7 +102,7 @@ describe('buildSnapshot', () => {
     expect(snap.text).toMatch(/Por espacio, \d+ posits solo aparecen resumidos/)
     // el posit seleccionado aparece con todos sus renglones
     const alias = Object.values(snap.notes).find((n) => n.id === 'n29')!.alias
-    expect(snap.text).toContain(`[${alias}] posit Amarillo · 0 de 6 pendientes hechos\n  texto: Tema 29`)
+    expect(snap.text).toContain(`[${alias}] posit Amarillo · SELECCIONADO · 0 de 6 pendientes hechos\n  texto: Tema 29`)
     // los aliases siguen siendo todos los posits, en orden de lectura
     expect(Object.keys(snap.notes)).toHaveLength(30)
   })

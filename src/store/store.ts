@@ -1,6 +1,7 @@
 import { createStore, useStore as useZustand } from 'zustand'
 import type { JSONContent } from '@tiptap/core'
 import { GRID, clamp, findFreeSpot, type Rect } from '../lib/geometry'
+import { DEFAULT_FONT_ID, NOTE_FONTS } from '../lib/fonts'
 import { DEFAULT_COLOR, PAPER_COLORS } from '../lib/palette'
 import { seeded } from '../lib/seed'
 import { uid } from '../lib/uid'
@@ -40,6 +41,8 @@ export interface AddNoteOptions {
   w?: number
   h?: number
   color?: string
+  /** Letra (id de src/lib/fonts.ts); sin ella, la que se tiene «en la mano». */
+  font?: string
   doc?: JSONContent | null
   /** Abre el posit ya listo para escribir. */
   edit?: boolean
@@ -92,8 +95,10 @@ interface Actions {
   /** Suma un pendiente marcado al conteo de hoy (`day` = AAAA-MM-DD; otro día empieza de cero) y devuelve el total. */
   countMascotDone(day: string): number
 
-  /** "Toma un marcador": color para los posits nuevos y para el posit seleccionado. */
+  /** Elige un color de la paleta: para los posits nuevos y para el posit seleccionado. */
   pickColor(hex: string): void
+  /** "Toma una pluma": letra para los posits nuevos y para el posit seleccionado. */
+  pickFont(id: string): void
   toggleMagnet(): void
   setView(boardId: string, view: View): void
   showToast(t: Omit<Toast, 'id'>): void
@@ -171,7 +176,7 @@ export function createDefaultState(now = Date.now()): PersistedState {
     stickers: { [stickerId]: sparkle },
     nextZ: 3,
     views: {},
-    settings: { magnet: true, defaultColor: DEFAULT_COLOR, recentIcons: [], mascot: 'on', mascotMet: false, mascotPos: null, mascotDone: { day: '', n: 0 } },
+    settings: { magnet: true, defaultColor: DEFAULT_COLOR, defaultFont: DEFAULT_FONT_ID, recentIcons: [], mascot: 'on', mascotMet: false, mascotPos: null, mascotDone: { day: '', n: 0 } },
   }
 }
 
@@ -209,6 +214,7 @@ export function createPositsStore(initial: PersistedState) {
         const taken = opts.avoid ?? notesOf(s).map((n) => ({ x: n.x, y: n.y, w: n.w, h: n.h }))
         ;({ x, y } = findFreeSpot(taken, x, y, w, h))
       }
+      const font = opts.font ?? s.settings.defaultFont
       const note: Note = {
         id: uid(),
         boardId: s.activeBoardId,
@@ -218,6 +224,8 @@ export function createPositsStore(initial: PersistedState) {
         h,
         z: s.nextZ,
         color: opts.color ?? s.settings.defaultColor,
+        // la letra de siempre no se anota: «sin valor» ya es esa
+        ...(font && font !== DEFAULT_FONT_ID && NOTE_FONTS.some((f) => f.id === font) ? { font } : {}),
         doc: opts.doc ?? null,
         createdAt: now,
         updatedAt: now,
@@ -516,6 +524,17 @@ export function createPositsStore(initial: PersistedState) {
         return {
           settings: { ...s.settings, defaultColor: hex },
           ...(sel ? { notes: { ...s.notes, [sel.id]: { ...sel, color: hex, updatedAt: Date.now() } } } : {}),
+        }
+      })
+    },
+
+    pickFont(id) {
+      if (!NOTE_FONTS.some((f) => f.id === id)) return
+      set((s) => {
+        const sel = s.selectedId ? s.notes[s.selectedId] : undefined
+        return {
+          settings: { ...s.settings, defaultFont: id },
+          ...(sel ? { notes: { ...s.notes, [sel.id]: { ...sel, font: id, updatedAt: Date.now() } } } : {}),
         }
       })
     },

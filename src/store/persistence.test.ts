@@ -67,6 +67,25 @@ describe('letra del posit al guardar y cargar', () => {
   })
 })
 
+describe('la pluma en la mano al guardar y cargar', () => {
+  it('se recuerda la letra elegida para los posits nuevos', () => {
+    const d = createDefaultState(5)
+    d.settings.defaultFont = 'architects'
+    expect(parsePersisted(JSON.stringify(d))?.settings.defaultFont).toBe('architects')
+  })
+
+  it('lo guardado antes de que existiera, o con una letra que ya no está, vuelve a la de siempre', () => {
+    const d = createDefaultState(5)
+    const old = JSON.parse(JSON.stringify(d))
+    delete old.settings.defaultFont
+    expect(parsePersisted(JSON.stringify(old))?.settings.defaultFont).toBe('kalam')
+    for (const bad of ['comic-sans', 7, null, {}]) {
+      old.settings.defaultFont = bad
+      expect(parsePersisted(JSON.stringify(old))?.settings.defaultFont).toBe('kalam')
+    }
+  })
+})
+
 describe('la mascota al guardar y cargar', () => {
   const raw = () => JSON.parse(JSON.stringify(pickPersisted(createDefaultState(1))))
 

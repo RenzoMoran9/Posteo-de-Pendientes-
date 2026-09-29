@@ -74,6 +74,42 @@ describe('mover, redimensionar y colorear', () => {
     expect(S().settings.defaultColor).toBe('#62D2C8')
   })
 
+  it('una pluma cambia la letra del posit seleccionado y la de los siguientes', () => {
+    const id = notes()[0].id
+    S().select(id)
+    S().pickFont('caveat')
+    expect(S().notes[id].font).toBe('caveat')
+    expect(S().settings.defaultFont).toBe('caveat')
+    const next = S().addNote({ x: 900, y: 0 })
+    expect(S().notes[next].font).toBe('caveat')
+  })
+
+  it('sin posit seleccionado, la pluma solo cambia la letra de los nuevos', () => {
+    const id = notes()[0].id
+    S().select(null)
+    S().pickFont('marker')
+    expect(S().notes[id].font).toBeUndefined()
+    expect(S().settings.defaultFont).toBe('marker')
+    const next = S().addNote({ x: 900, y: 0 })
+    expect(S().notes[next].font).toBe('marker')
+  })
+
+  it('la letra de siempre no se anota en el posit nuevo, y una letra que no existe se ignora', () => {
+    S().pickFont('patrick')
+    S().pickFont('kalam')
+    const next = S().addNote({ x: 900, y: 0 })
+    expect('font' in S().notes[next]).toBe(false)
+    S().pickFont('no-existe')
+    expect(S().settings.defaultFont).toBe('kalam')
+  })
+
+  it('un posit puede nacer con su propia letra, sin cambiar la que se tiene en la mano', () => {
+    S().pickFont('gochi')
+    const id = S().addNote({ x: 900, y: 0, font: 'altura' })
+    expect(S().notes[id].font).toBe('altura')
+    expect(S().settings.defaultFont).toBe('gochi')
+  })
+
   it('escribir guarda el documento', () => {
     const id = notes()[0].id
     S().setDoc(id, textDoc('hola'))

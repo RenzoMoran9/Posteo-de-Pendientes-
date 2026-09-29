@@ -3,7 +3,8 @@
  *   - se ve sobre el estuche, hecha de bloques en 3D (caras de CSS con perspectiva y luz)
  *   - mira al cursor, al dedo y al cursor de escritura; parpadea; se duerme y se despierta
  *   - saluda, comenta lo que escribes (con sugerencias que se pueden aceptar), celebra los pendientes
- *   - al tocarla contesta y deja elegir «Que calle» / «Ocultar» (y volver a mostrarla)
+ *   - al tocarla se abre la conversación con Claude; «Que calle» / «Ocultar» están en sus ajustes (y volver a mostrarla)
+ *   - la nube de comentarios (con sus botones) sale sola; aquí se provoca con mascotDebug.poke()
  *   - PC: ratón y teclado · Celular: toques reales, sin estorbar al estuche ni al teclado
  *
  * Uso:  npm run build && node e2e/mascot.cjs
@@ -46,6 +47,9 @@ const overlaps = (a, b) => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b
 const fixRng = (page, v = 0.05) => page.evaluate((x) => (window.__posits.mascotDebug.brain.rng = () => x), v)
 const resetBrain = (page) => page.evaluate(() => window.__posits.mascotDebug.brain.reset())
 const waitBubble = (page, ms = 4000) => page.waitForSelector('.mb', { timeout: ms })
+/** Provoca la nube con los ajustes (lo que antes hacía tocar a la mascota; ahora tocarla abre la conversación). */
+const poke = (page) => page.evaluate(() => window.__posits.mascotDebug.poke())
+const chatOpen = (page) => page.evaluate(() => window.__posits.chat.getState().open)
 const noBubbleFor = async (page, ms) => {
   await page.waitForTimeout(ms)
   return (await bubble(page).count()) === 0
@@ -123,7 +127,7 @@ async function desktop(browser, url) {
   moved = await m.boundingBox()
   const topBar = await page.locator('.topbar').boundingBox()
   check('no se deja llevar tan arriba que la nube se salga: queda bajo la barra con sitio para hablar', moved.y >= topBar.y + topBar.height + 200, JSON.stringify({ moved, topBar }))
-  await m.locator('.mascot-figure').click()
+  await poke(page)
   await waitBubble(page, 1500)
   await page.waitForTimeout(3300)
   const s2b = await mstate(page)
@@ -137,7 +141,7 @@ async function desktop(browser, url) {
   check('el sitio se recuerda al recargar', near(back.x, moved.x, 3) && near(back.y, moved.y, 3), JSON.stringify({ back, moved }))
   await page.waitForTimeout(2300) // que pase el saludo de la visita
   await page.evaluate(() => window.__posits.mascot.getState().hush())
-  await m.locator('.mascot-figure').click()
+  await poke(page)
   await waitBubble(page, 1500)
   await page.waitForTimeout(3300)
   await page.getByRole('button', { name: 'A su sitio' }).click()
@@ -228,6 +232,26 @@ async function desktop(browser, url) {
   await shot(page, 'mascota-pc-04-icono-pegado')
   await page.getByRole('button', { name: 'Listo' }).click()
 
+  // 8b · Cansancio: ofrece pedirle ayuda a Claude, y el botón abre la conversación con la pregunta ya enviada
+  await resetBrain(page)
+  await page.getByRole('button', { name: 'Nuevo posit' }).click()
+  await page.waitForSelector('.note.is-editing')
+  await page.keyboard.type('Ya no puedo más, mucho trabajo')
+  await waitBubble(page, 5000)
+  await page.waitForTimeout(3300)
+  s2 = await mstate(page)
+  check('ante el cansancio ofrece «Pedirle ayuda a Claude»', !!s2.bubble && s2.bubble.chips.includes('Pedirle ayuda a Claude'), JSON.stringify(s2))
+  await page.getByRole('button', { name: 'Pedirle ayuda a Claude' }).click()
+  await page.waitForSelector('.chat')
+  await page.waitForFunction(() => window.__posits.chat.getState().messages.length >= 2 && window.__posits.chat.getState().status === 'idle', null, { timeout: 5000 })
+  const asked = await page.evaluate(() => window.__posits.chat.getState().messages.map((m) => ({ role: m.role, text: m.text })))
+  check('…abre la conversación, envía la pregunta y contesta', asked[0].role === 'user' && asked[0].text.includes('mucha carga de trabajo') && asked[1].role === 'assistant' && asked[1].text.length > 10, JSON.stringify(asked))
+  check('…y la nube se fue (con la conversación abierta la mascota no comenta sola)', (await bubble(page).count()) === 0)
+  await page.evaluate(() => window.__posits.chat.getState().clear())
+  await page.getByRole('button', { name: 'Cerrar la conversación' }).click()
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Listo' }).click().catch(() => {})
+
   // 9 · Celebra los pendientes
   await resetBrain(page)
   const box1 = await page.locator('.note').first().locator('.task-check').first().boundingBox()
@@ -242,16 +266,31 @@ async function desktop(browser, url) {
   await shot(page, 'mascota-pc-05-festejo')
   await bubble(page).click()
 
-  // 10 · Al tocarla contesta y deja ajustar
+  // 10 · Al tocarla se abre la conversación; los ajustes de la mascota están ahí
   await page.mouse.move(600, 300)
   await page.locator('.mascot-figure').click()
-  await waitBubble(page, 1500)
+  await page.waitForSelector('.chat')
+  check('al tocarla se abre la conversación con Claude (y no una nube)', (await chatOpen(page)) && (await bubble(page).count()) === 0 && (await page.locator('.chat').getAttribute('aria-label')) === 'Conversación con Claude')
+  await page.waitForTimeout(500)
+  const cbox = await page.locator('.chat').boundingBox()
+  const mbox = await m.boundingBox()
+  check('el panel queda sobre la mascota, entero en pantalla y sin taparla', inside(cbox, 1280, 800, 2) && cbox.y + cbox.height <= mbox.y + 4, JSON.stringify({ cbox, mbox }))
+  const lookChat = await pupils(page)
+  const inputBox = await page.locator('[data-chat-input]').boundingBox()
+  await page.mouse.move(mbox.x + mbox.width / 2, mbox.y + mbox.height / 2) // el cursor sobre ella: no cuenta como mirada
   await page.waitForTimeout(3300)
-  s2 = await mstate(page)
-  check('al tocarla siempre contesta y ofrece «Que calle» y «Ocultar»', !!s2.bubble && s2.bubble.chips.join('|') === 'Que calle|Ocultar', JSON.stringify(s2))
+  const lookInput = await pupils(page)
+  check('con el panel abierto, la mascota mira hacia el campo donde se escribe (a su izquierda y arriba)', inputBox.x + inputBox.width / 2 < mbox.x && lookInput.x < -0.2 && lookInput.y < 0, JSON.stringify({ lookChat, lookInput, inputBox, mbox }))
+  await page.getByRole('button', { name: 'Ajustes', exact: true }).click()
+  await page.waitForTimeout(200)
+  check('los ajustes traen «Que calle» y «Ocultar»', (await page.getByRole('button', { name: 'Que calle' }).count()) === 1 && (await page.getByRole('button', { name: 'Ocultar', exact: true }).count()) === 1)
   await page.getByRole('button', { name: 'Que calle' }).click()
   await page.waitForTimeout(200)
   check('«Que calle» la deja en modo callada (sigue a la vista, sin nubes)', (await mode(page)) === 'quiet' && (await m.getAttribute('data-quiet')) === '1' && (await bubble(page).count()) === 0)
+  check('…y el botón cambia a «Que hable»', (await page.getByRole('button', { name: 'Que hable' }).count()) === 1)
+  await page.getByRole('button', { name: 'Cerrar la conversación' }).click()
+  await page.waitForTimeout(200)
+  check('cerrar la conversación quita el panel', (await page.locator('.chat').count()) === 0 && !(await chatOpen(page)))
   await resetBrain(page)
   await page.getByRole('button', { name: 'Nuevo posit' }).click()
   await page.waitForSelector('.note.is-editing')
@@ -259,11 +298,11 @@ async function desktop(browser, url) {
   check('callada no comenta lo que escribes', await noBubbleFor(page, 3400))
   await page.getByRole('button', { name: 'Listo' }).click()
   check('callada sigue mirando: las pupilas se mueven con el cursor', (await page.mouse.move(60, 400), await page.waitForTimeout(400), (await pupils(page)).x < -0.3))
-  await m.locator('.mascot-figure').click()
+  await poke(page)
   await waitBubble(page, 1500)
   await page.waitForTimeout(3300)
   s2 = await mstate(page)
-  check('aunque esté callada, al tocarla contesta (y ofrece «Que hable»)', !!s2.bubble && s2.bubble.chips[0] === 'Que hable', JSON.stringify(s2))
+  check('aunque esté callada, si se le toca la nube contesta (y ofrece «Que hable»)', !!s2.bubble && s2.bubble.chips[0] === 'Que hable', JSON.stringify(s2))
   await page.getByRole('button', { name: 'Ocultar' }).click()
   await page.waitForTimeout(250)
   check('«Ocultar» la esconde: solo asoma la mascotita', (await mode(page)) === 'off' && (await page.locator('.mascot').count()) === 0 && (await page.locator('.mascot-peek').isVisible()))
@@ -354,14 +393,13 @@ async function phone(browser, url) {
   let p = await pupils(page)
   check('mira hacia donde tocas con el dedo', p.x < -0.3, JSON.stringify(p))
 
-  // La toco: contesta y los botones se pueden pulsar con el dedo
-  const fb = await page.locator('.mascot-figure').boundingBox()
-  await tap(centerOf(fb).x, centerOf(fb).y)
+  // La nube con sus ajustes: los botones se pueden pulsar con el dedo
+  await poke(page)
   await waitBubble(page, 1500)
   await page.waitForTimeout(3300)
   const b2 = await bubble(page).boundingBox()
   const chip = await page.locator('.mb-chip').first().boundingBox()
-  check('al tocarla contesta, con la nube dentro de la pantalla y botones de ≥ 36 px', inside(b2, 390, 844, 4) && chip.height >= 36 && chip.width >= 60, JSON.stringify({ b2, chip }))
+  check('la nube cabe en la pantalla y sus botones miden ≥ 36 px', inside(b2, 390, 844, 4) && chip.height >= 36 && chip.width >= 60, JSON.stringify({ b2, chip }))
   await shot(page, 'mascota-cel-02-toque')
   await page.getByRole('button', { name: 'Que calle' }).tap()
   await page.waitForTimeout(250)
@@ -392,8 +430,8 @@ async function phone(browser, url) {
   const posT = await page.evaluate(() => window.__posits.store.getState().settings.mascotPos)
   check('con el dedo se arrastra a otro sitio y ahí se queda', !!posT && near(centerOf(dragged).x, 90, 8) && near(centerOf(dragged).y, 470, 8), JSON.stringify({ posT, dragged }))
   check('…sin mover el tablero de atrás ni abrir una nube', (await bubble(page).count()) === 0 && (await getState(page)).view.z === 1)
-  const g0 = centerOf(await page.locator('.mascot-figure').boundingBox())
-  await tap(g0.x, g0.y)
+  check('…y soltarla no abre la conversación', !(await chatOpen(page)))
+  await poke(page)
   await waitBubble(page, 1500)
   await page.waitForTimeout(3300)
   const bl = await bubble(page).boundingBox()

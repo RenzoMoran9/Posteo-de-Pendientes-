@@ -25,6 +25,12 @@ interface ClaudeHost {
 
 const hostOf = (): ClaudeHost | undefined => (typeof window === 'undefined' ? undefined : (window as unknown as { claude?: ClaudeHost }).claude)
 
+/**
+ * ¿La página está dentro de un visor de Claude (el enlace de prueba)? Ahí el navegador no deja salir a otros sitios ni cargar
+ * archivos sueltos, así que la conexión con clave propia no puede funcionar: solo la cuenta de Claude.
+ */
+export const insideClaudeHost = (): boolean => !!hostOf()
+
 let cached: Promise<SampleFn | null> | undefined
 
 /** ¿Está disponible? Resuelve `null` fuera del enlace de prueba (no hay `window.claude`). */

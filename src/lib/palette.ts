@@ -3,12 +3,8 @@ export interface PaperColor {
   hex: string
 }
 
-/**
- * Paleta amplia de papel. Los primeros nueve son los "marcadores" que asoman
- * en el estuche; el resto se ve en «Más colores».
- */
+/** Paleta amplia de papel (la de los posits): se abre chiquita desde el botón de la paleta del estuche. */
 export const PAPER_COLORS: PaperColor[] = [
-  // Los que asoman en el estuche (en el celular, los seis primeros)
   { name: 'Amarillo', hex: '#FFD95E' },
   { name: 'Naranja', hex: '#FFA65C' },
   { name: 'Rojo', hex: '#EF6A62' },
@@ -18,7 +14,6 @@ export const PAPER_COLORS: PaperColor[] = [
   { name: 'Gris', hex: '#E4E1DA' },
   { name: 'Kraft', hex: '#DDBE92' },
   { name: 'Marino', hex: '#34507F' },
-  // El resto, en «Más colores»
   { name: 'Carbón', hex: '#3B3F46' },
   { name: 'Bosque', hex: '#2F6F55' },
   { name: 'Café', hex: '#7C563B' },
@@ -35,9 +30,6 @@ export const PAPER_COLORS: PaperColor[] = [
   { name: 'Lila', hex: '#CDB4F6' },
   { name: 'Morado', hex: '#A78BDF' },
 ]
-
-/** Cuántos marcadores caben "de fábrica" en el estuche. */
-export const FEATURED_COUNT = 9
 
 export const DEFAULT_COLOR = PAPER_COLORS[0].hex
 

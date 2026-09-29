@@ -8,7 +8,7 @@ import { useVisualViewport } from './hooks/useVisualViewport'
 import { Mascot } from './mascot/Mascot'
 import { ContextBar } from './ui/ContextBar'
 import { IconPanel } from './ui/IconPanel'
-import { MarkerCase } from './ui/MarkerCase'
+import { PenCase } from './ui/PenCase'
 import { SvgDefs } from './ui/SvgDefs'
 import { Toast } from './ui/Toast'
 import { TopBar } from './ui/TopBar'
@@ -35,7 +35,7 @@ export default function App() {
       <div className="dock" ref={dockRef}>
         <Toast />
         <ContextBar />
-        <MarkerCase />
+        <PenCase />
         <IconPanel />
       </div>
       <input ref={proxyRef} className="kbd-proxy" aria-hidden="true" tabIndex={-1} autoComplete="off" />

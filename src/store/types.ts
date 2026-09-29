@@ -61,8 +61,10 @@ export type MascotMode = 'on' | 'quiet' | 'off'
 export interface Settings {
   /** Imán suave a la cuadrícula al mover y redimensionar. */
   magnet: boolean
-  /** Color con el que nacen los posits nuevos ("el marcador en la mano"). */
+  /** Color con el que nacen los posits nuevos (el que se eligió en la paleta). */
   defaultColor: string
+  /** Letra con la que nacen los posits nuevos ("la pluma en la mano"; id de src/lib/fonts.ts). */
+  defaultFont: string
   /** Últimos íconos usados (el más reciente primero). */
   recentIcons: string[]
   /** Cómo está la mascota en este dispositivo. */

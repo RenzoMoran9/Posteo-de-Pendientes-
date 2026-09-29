@@ -335,16 +335,18 @@ async function phone(browser, url) {
   const geo = await page.evaluate(() => {
     const r = (el) => (el ? el.getBoundingClientRect() : null)
     const c = r(document.querySelector('.case'))
-    const kids = [...document.querySelectorAll('.case > button, .case .markers')].map((e) => r(e))
+    const kids = [...document.querySelectorAll('.case > button, .case .pen-strip')].map((e) => r(e))
+    const strip = r(document.querySelector('.pen-strip'))
     return {
       c,
-      markers: document.querySelectorAll('.marker').length,
+      pens: document.querySelectorAll('.pen').length,
+      visible: [...document.querySelectorAll('.pen')].filter((p) => { const b = r(p); return b.left >= strip.left - 1 && b.right <= strip.right + 1 }).length,
       overflow: document.documentElement.scrollWidth > innerWidth,
       out: kids.filter((k) => k.left < c.left - 0.5 || k.right > c.right + 0.5).length,
       btn: r(document.querySelector('.icons-btn')),
     }
   })
-  check('en 390 px el estuche muestra 5 marcadores y el botón de íconos', geo.markers === 5 && !!geo.btn && geo.btn.width >= 40 && geo.btn.height >= 40, JSON.stringify(geo))
+  check('en 390 px el estuche trae los 8 instrumentos (se ven ≥ 3 sin deslizar) y el botón de íconos', geo.pens === 8 && geo.visible >= 3 && !!geo.btn && geo.btn.width >= 40 && geo.btn.height >= 40, JSON.stringify(geo))
   check('…todo dentro del estuche y sin desbordar la pantalla', geo.out === 0 && !geo.overflow, JSON.stringify(geo))
 
   // 2 · Abrir el panel con un toque
@@ -382,7 +384,12 @@ async function phone(browser, url) {
   check('arrastrar con el dedo mueve el ícono (sin mover el tablero)', near(after.x - before.x, -60 / z, 1.5) && near(after.y - before.y, -70 / z, 1.5), `${before.x},${before.y} → ${after.x},${after.y}`)
 
   // 5 · Tocar el fondo lo suelta; tocarlo lo vuelve a seleccionar
-  await tap(30, 420)
+  // un punto vacío de la hoja (lejos del ícono y de los posits: su sitio depende de cuánto mida el estuche)
+  const sNow = await stickerBox(page, phoneIcon.id)
+  const noteBoxes = await page.locator('.note').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height } }))
+  const overBox = (p, b, m) => p.x > b.x - m && p.x < b.x + b.width + m && p.y > b.y - m && p.y < b.y + b.height + m
+  const bgPoint = [{ x: 30, y: 420 }, { x: 30, y: 250 }, { x: 360, y: 250 }, { x: 30, y: 600 }, { x: 360, y: 600 }].find((p) => !overBox(p, sNow, 40) && !noteBoxes.some((n) => overBox(p, n, 0)))
+  await tap(bgPoint.x, bgPoint.y)
   check('tocar el fondo deselecciona el ícono y esconde su barra', (await page.evaluate(() => window.__posits.store.getState().selectedStickerId)) === null && (await page.getByRole('toolbar', { name: 'Acciones del ícono' }).count()) === 0)
   sb = await stickerBox(page, phoneIcon.id)
   await tap(centerOf(sb).x, centerOf(sb).y)
@@ -450,9 +457,9 @@ async function phone(browser, url) {
   await shot(page, 's3-cel-04-texto')
 
   // 9 · Pantallas muy angostas
-  for (const [w, h, markers] of [
-    [360, 740, 4],
-    [320, 568, 4],
+  for (const [w, h, visible] of [
+    [360, 740, 3],
+    [320, 568, 2],
   ]) {
     const c2 = await browser.newContext({ ...IPHONE, viewport: { width: w, height: h } })
     const p2 = await c2.newPage()
@@ -463,16 +470,18 @@ async function phone(browser, url) {
     const g = await p2.evaluate(() => {
       const r = (el) => (el ? el.getBoundingClientRect() : null)
       const c = r(document.querySelector('.case'))
-      const kids = [...document.querySelectorAll('.case > button, .case .markers')].map((e) => r(e))
+      const kids = [...document.querySelectorAll('.case > button, .case .pen-strip')].map((e) => r(e))
+      const strip = r(document.querySelector('.pen-strip'))
       return {
-        markers: document.querySelectorAll('.marker').length,
+        pens: document.querySelectorAll('.pen').length,
+        visible: [...document.querySelectorAll('.pen')].filter((p) => { const b = r(p); return b.left >= strip.left - 1 && b.right <= strip.right + 1 }).length,
         overflow: document.documentElement.scrollWidth > innerWidth,
         out: kids.filter((k) => k.left < c.left - 0.5 || k.right > c.right + 0.5).length,
         gap: Math.min(...kids.slice(1).map((k, i) => k.left - kids[i].right)),
         btn: r(document.querySelector('.icons-btn')),
       }
     })
-    check(`en ${w} px el estuche cabe: ${g.markers} marcadores + íconos, sin desbordar`, g.markers >= markers && g.out === 0 && !g.overflow && g.btn.right <= w, JSON.stringify(g))
+    check(`en ${w} px el estuche cabe: 8 instrumentos (se ven ≥ ${visible}) + íconos, sin desbordar`, g.pens === 8 && g.visible >= visible && g.out === 0 && !g.overflow && g.btn.right <= w, JSON.stringify(g))
     await p2.screenshot({ path: `${require('./lib.cjs').OUT}/s3-cel-${w}.png` })
     await c2.close()
   }

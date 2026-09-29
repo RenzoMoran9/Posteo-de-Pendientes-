@@ -1,4 +1,5 @@
 import type { StoreApi } from 'zustand'
+import { DEFAULT_FONT_ID, NOTE_FONTS } from '../lib/fonts'
 import { DEFAULT_COLOR } from '../lib/palette'
 import type { Board, Note, PersistedState, SaveStatus, Sticker, View } from './types'
 
@@ -129,6 +130,7 @@ export function parsePersisted(raw: string | null): PersistedState | null {
     settings: {
       magnet: st.magnet !== false,
       defaultColor: str(st.defaultColor, DEFAULT_COLOR),
+      defaultFont: typeof st.defaultFont === 'string' && NOTE_FONTS.some((f) => f.id === st.defaultFont) ? st.defaultFont : DEFAULT_FONT_ID,
       recentIcons: Array.isArray(st.recentIcons)
         ? st.recentIcons.filter((v): v is string => typeof v === 'string').slice(0, MAX_RECENT_ICONS)
         : [],

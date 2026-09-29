@@ -70,11 +70,11 @@ function readingOrder<T extends { x: number; y: number }>(list: T[]): T[] {
   return [...list].sort((a, b) => Math.round(a.y / 120) - Math.round(b.y / 120) || a.x - b.x)
 }
 
-function noteBlock(alias: string, n: PersistedState['notes'][string]): string {
+function noteBlock(alias: string, n: PersistedState['notes'][string], selected = false): string {
   const lines: string[] = []
   const { total, done } = taskCount(n.doc)
   const head = total ? ` · ${done} de ${total} pendientes hechos` : ''
-  lines.push(`[${alias}] posit ${nameOfColor(n.color)}${head}`)
+  lines.push(`[${alias}] posit ${nameOfColor(n.color)}${selected ? ' · SELECCIONADO' : ''}${head}`)
   const loose = looseLines(n.doc)
   loose.slice(0, MAX_LINES).forEach((t) => lines.push(`  texto: ${cut(t, MAX_ITEM_CHARS)}`))
   if (loose.length > MAX_LINES) lines.push(`  (${loose.length - MAX_LINES} líneas de texto más)`)
@@ -90,10 +90,10 @@ function noteBlock(alias: string, n: PersistedState['notes'][string]): string {
   return lines.join('\n')
 }
 
-const summaryLine = (alias: string, n: PersistedState['notes'][string]): string => {
+const summaryLine = (alias: string, n: PersistedState['notes'][string], selected = false): string => {
   const { total, done } = taskCount(n.doc)
   const title = looseLines(n.doc)[0] ?? ''
-  return `[${alias}] posit ${nameOfColor(n.color)} «${cut(title, 40)}»${total ? ` · ${done} de ${total} pendientes hechos` : ''} (contenido omitido por espacio)`
+  return `[${alias}] posit ${nameOfColor(n.color)}${selected ? ' · SELECCIONADO' : ''} «${cut(title, 40)}»${total ? ` · ${done} de ${total} pendientes hechos` : ''} (contenido omitido por espacio)`
 }
 
 export function buildSnapshot(s: BoardState, opts: SnapshotOptions = {}): Snapshot {
@@ -136,11 +136,12 @@ export function buildSnapshot(s: BoardState, opts: SnapshotOptions = {}): Snapsh
     return openOf(b.doc) - openOf(a.doc) || b.updatedAt - a.updatedAt
   })
   const shown = priority.slice(0, MAX_NOTES)
-  let budget = maxChars - head.join('\n').length - shown.reduce((sum, n) => sum + summaryLine(aliasOf.get(n.id)!, n).length + 1, 0)
+  const isSel = (id: string): boolean => id === opts.selectedId
+  let budget = maxChars - head.join('\n').length - shown.reduce((sum, n) => sum + summaryLine(aliasOf.get(n.id)!, n, isSel(n.id)).length + 1, 0)
   const full = new Set<string>()
   for (const n of shown) {
     const alias = aliasOf.get(n.id)!
-    const extra = noteBlock(alias, n).length - summaryLine(alias, n).length
+    const extra = noteBlock(alias, n, isSel(n.id)).length - summaryLine(alias, n, isSel(n.id)).length
     if (extra > budget && full.size > 0) continue
     full.add(n.id)
     budget -= extra
@@ -154,9 +155,9 @@ export function buildSnapshot(s: BoardState, opts: SnapshotOptions = {}): Snapsh
     const alias = aliasOf.get(n.id)!
     notes[alias] = { alias, id: n.id, fp: fingerprint(n.doc) }
     if (full.has(n.id)) {
-      blocks.push(noteBlock(alias, n))
+      blocks.push(noteBlock(alias, n, isSel(n.id)))
     } else {
-      blocks.push(summaryLine(alias, n))
+      blocks.push(summaryLine(alias, n, isSel(n.id)))
       omitted += 1
     }
   }

@@ -211,157 +211,279 @@
   pointer-events: auto;
 }
 
-/* ─────────── Estuche de marcadores (lona y costura) ─────────── */
+/* ─────────── Estuche de instrumentos ───────────
+   La barra de abajo: «Nuevo», ocho instrumentos de escritura (cada uno es un tipo de letra, con una muestra de cómo
+   escribe), y a la derecha los íconos y la paleta de colores del papel. Chapa oscura, sin bordes temblorosos. */
 
 .case {
-  --mk-w: 36px;
-  width: min(100%, 700px);
-  height: 84px;
+  --pen-w: 64px;
+  --pen-h: 94px;
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 12px;
+  gap: 9px;
+  width: min(100%, 940px);
+  padding: 10px 11px 10px 10px;
+  color: var(--panel-text);
+  background: linear-gradient(180deg, #262c34 0%, #161a1f 100%);
+  border: 2px solid #080a0c;
+  border-radius: 14px;
+  box-shadow:
+    0 5px 0 rgb(0 0 0 / 0.38),
+    0 12px 24px rgb(0 0 0 / 0.26),
+    inset 0 1.5px 0 rgb(255 255 255 / 0.1),
+    inset 0 -2px 0 rgb(0 0 0 / 0.38);
 }
 
+/* «Nuevo»: placa de esquinas cortadas con el borde de azul acero. */
 .add-btn {
+  --cut: 13px;
+  position: relative;
+  isolation: isolate;
   flex: none;
   display: flex;
   align-items: center;
-  gap: 4px;
-  height: 56px;
-  padding: 0 18px 0 12px;
-  color: var(--accent-ink);
-  background: var(--accent);
-  border: 3px solid var(--panel-line);
-  border-radius: 9px 11px 8px 12px / 11px 8px 12px 9px;
-  box-shadow: 3px 3px 0 var(--panel-line);
-  transition: transform 0.1s, box-shadow 0.1s, background 0.12s;
+  gap: 6px;
+  height: 64px;
+  padding: 0 24px 0 15px;
+  color: #eaf3ff;
+  background: var(--steel);
+  clip-path: polygon(
+    var(--cut) 0,
+    calc(100% - var(--cut)) 0,
+    100% var(--cut),
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    var(--cut) 100%,
+    0 calc(100% - var(--cut)),
+    0 var(--cut)
+  );
+  transition: transform 0.1s, background 0.12s;
+}
+
+.add-btn::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  z-index: -1;
+  background: linear-gradient(180deg, #1e2935, #10161d);
+  clip-path: polygon(
+    calc(var(--cut) - 2px) 0,
+    calc(100% - var(--cut) + 2px) 0,
+    100% calc(var(--cut) - 2px),
+    100% calc(100% - var(--cut) + 2px),
+    calc(100% - var(--cut) + 2px) 100%,
+    calc(var(--cut) - 2px) 100%,
+    0 calc(100% - var(--cut) + 2px),
+    0 calc(var(--cut) - 2px)
+  );
+  transition: background 0.12s;
 }
 
 .add-btn:active {
-  transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 var(--panel-line);
+  transform: translateY(2px);
+}
+
+.add-btn:active::before {
+  background: linear-gradient(180deg, #2b4d73, #1b3450);
+}
+
+/* el contorno de foco normal quedaría recortado por las esquinas: aquí el propio borde se pone blanco */
+.add-btn:focus-visible {
+  outline: none;
+  background: #fff;
 }
 
 .add-btn svg {
   width: 30px;
   height: 30px;
-  stroke-width: 3.6;
-  filter: url(#rough-soft);
+  stroke-width: 3.4;
+  color: #79b1f5;
 }
 
 .add-label {
-  font-size: 20px;
+  font-size: 21px;
   font-weight: 700;
+  font-style: italic;
   line-height: 1;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
-.markers {
+/* los instrumentos: una tira que se desliza cuando no caben todos */
+.pen-strip {
   position: relative;
   flex: 1;
-  align-self: stretch;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-around;
   min-width: 0;
-  /* deja asomar el marcador levantado por arriba, pero recorta por abajo (lo tapa el bolsillo) */
-  clip-path: inset(-90px -14px 0 -14px);
+  display: flex;
+  align-items: stretch;
+  gap: 7px;
+  padding: 3px 3px 5px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  touch-action: pan-x;
 }
 
-.marker {
+.pen-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.pen {
   position: relative;
-  flex: none;
-  width: var(--mk-w);
-  height: calc(var(--mk-w) * 84 / 34);
-  transform: translateY(8px);
-  transition: transform 0.22s cubic-bezier(0.3, 1.6, 0.5, 1);
+  flex: 1 0 var(--pen-w);
+  display: flex;
+  flex-direction: column;
+  min-width: var(--pen-w);
+  max-width: 96px;
+  height: var(--pen-h);
+  overflow: hidden;
+  scroll-snap-align: center;
+  background: linear-gradient(180deg, #272e37, #1b2027);
+  border-radius: 10px;
+  box-shadow:
+    inset 0 0 0 1.5px rgb(255 255 255 / 0.06),
+    inset 0 -10px 14px rgb(0 0 0 / 0.28),
+    0 1px 0 rgb(0 0 0 / 0.5);
+  transition: background 0.18s, box-shadow 0.18s;
 }
 
-.marker svg {
+.pen-art {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 0;
+  padding-top: 8px;
+  /* el cuerpo del instrumento se pierde hacia abajo, detrás de la muestra */
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 78%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 78%, transparent 100%);
+  transition: transform 0.22s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.pen-svg {
   display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  filter: url(#rough-soft);
+  flex: none;
+  width: auto;
+  height: calc(var(--pen-h) * 1.22);
+  filter: drop-shadow(0 3px 2px rgb(0 0 0 / 0.55));
 }
 
-.marker[aria-pressed='true'] {
-  transform: translateY(-12px) rotate(-4deg);
-  z-index: 2;
+/* la muestra: cómo escribe ese instrumento */
+.pen-sample {
+  display: grid;
+  flex: none;
+  place-items: center;
+  height: 27px;
+  margin: 0 4px 4px;
+  line-height: 1;
+  white-space: nowrap;
+  color: #d8dfe6;
+  background: #12161b;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.6);
 }
 
-/* Bolsillo de lona verde oliva con costura de hilo: los marcadores parecen guardados en el estuche. */
-.pocket {
-  position: absolute;
-  left: -8px;
-  right: -8px;
-  bottom: -2px;
-  height: 30px;
-  z-index: 3;
-  pointer-events: none;
-  background:
-    var(--grain),
-    linear-gradient(180deg, var(--canvas-light), var(--canvas));
-  border: 3px solid var(--panel-line);
-  border-radius: 5px 5px 11px 12px / 7px 7px 12px 11px;
+/* el que tienes en la mano: pestaña azul arriba, la ranura se ilumina y el instrumento se levanta */
+.pen[aria-checked='true'] {
+  background: linear-gradient(180deg, #25415f, #182b42);
+  box-shadow:
+    inset 0 0 0 2px var(--steel),
+    0 0 12px rgb(95 150 215 / 0.35);
 }
 
-.pocket::before {
+.pen[aria-checked='true']::before {
   content: '';
   position: absolute;
-  left: 12px;
-  right: 12px;
-  top: 6px;
-  border-top: 2.5px dashed var(--thread);
+  top: 0;
+  left: 50%;
+  z-index: 1;
+  width: 28px;
+  height: 5px;
+  translate: -50% 0;
+  background: var(--steel);
+  border-radius: 0 0 5px 5px;
+  box-shadow: 0 0 8px rgb(95 150 215 / 0.8);
 }
 
-.more-btn {
+.pen[aria-checked='true'] .pen-art {
+  transform: translateY(-4px);
+}
+
+.pen[aria-checked='true'] .pen-sample {
+  color: #a9d0ff;
+}
+
+.case-sep {
+  flex: none;
+  width: 2px;
+  height: 58px;
+  margin: 0 2px;
+  background: linear-gradient(180deg, transparent, rgb(255 255 255 / 0.1), transparent);
+}
+
+/* los dos botones de la derecha: íconos y paleta */
+.tool-btn {
+  position: relative;
   flex: none;
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
-  color: var(--panel-text);
-  border-radius: 8px 10px 7px 11px / 10px 7px 11px 8px;
-  border: 3px solid var(--panel-line);
-  background: var(--panel-2);
-  box-shadow: 2px 3px 0 var(--panel-line);
+  width: 54px;
+  height: 54px;
+  color: #e8edf2;
+  background: linear-gradient(180deg, #2d353e, #1b2127);
+  border: 2px solid #07090b;
+  border-radius: 11px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 3px 0 rgb(0 0 0 / 0.45);
   transition: transform 0.1s, box-shadow 0.1s, background 0.12s;
 }
 
-.more-btn:active {
-  transform: translate(1px, 2px);
-  box-shadow: 1px 1px 0 var(--panel-line);
+.tool-btn:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 1px 0 rgb(0 0 0 / 0.45);
 }
 
-.more-btn[aria-expanded='true'] {
-  background: var(--steel-deep);
+.tool-btn[aria-expanded='true'] {
+  background: linear-gradient(180deg, #30598b, #21406a);
 }
 
-.more-btn svg {
-  width: 26px;
-  height: 26px;
-  stroke-width: 2.4;
-  filter: url(#rough-soft);
+.tool-btn svg {
+  width: 27px;
+  height: 27px;
+  stroke-width: 2.3;
 }
 
-/* ─────────── Paleta completa ─────────── */
+/* el color del papel que tienes elegido, siempre a la vista en el botón de la paleta */
+.palette-chip {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 15px;
+  height: 15px;
+  background: var(--c);
+  border: 2px solid #07090b;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.4);
+}
 
-/* Centrada sobre el estuche: así tapa por completo la barra de acciones, no a medias. */
+/* ─────────── Paleta de colores (chiquita, sobre el estuche) ─────────── */
+
 .palette-pop {
   position: absolute;
   z-index: 5;
-  left: 0;
-  right: 0;
+  right: 4px;
+  bottom: calc(100% + 14px);
   width: max-content;
-  max-width: 100%;
-  margin: 0 auto;
-  bottom: calc(100% + 18px);
-  padding: 12px 14px 14px;
+  max-width: calc(100% - 8px);
+  padding: 11px 12px 12px;
   animation: pop-up 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2);
-  transform-origin: 50% 100%;
+  transform-origin: 100% 100%;
 }
 
 .palette-title {
@@ -376,29 +498,29 @@
 
 .palette-grid {
   display: grid;
-  grid-template-columns: repeat(8, 42px);
-  gap: 8px;
+  grid-template-columns: repeat(8, 34px);
+  gap: 6px;
 }
 
 .swatch {
-  width: 42px;
-  height: 42px;
-  border-radius: 8px 9px 7px 10px;
-  border: 3px solid var(--panel-line);
+  width: 34px;
+  height: 34px;
   background: var(--c);
+  border: 2.5px solid var(--panel-line);
+  border-radius: 7px 8px 6px 9px;
   box-shadow:
-    0 0 0 2px rgb(255 255 255 / 0.16),
-    2px 3px 0 var(--panel-line);
+    0 0 0 1.5px rgb(255 255 255 / 0.16),
+    1.5px 2px 0 var(--panel-line);
   transition: transform 0.12s;
 }
 
 .swatch:active {
-  transform: scale(0.92);
+  transform: scale(0.9);
 }
 
 .swatch[aria-pressed='true'] {
   outline: 3px solid var(--accent);
-  outline-offset: 3px;
+  outline-offset: 2.5px;
 }
 
 @keyframes pop-up {
@@ -630,9 +752,10 @@
   }
 
   .case {
-    --mk-w: 32px;
+    --pen-w: 54px;
+    --pen-h: 80px;
     gap: 6px;
-    padding: 0 10px;
+    padding: 8px 8px 8px 8px;
   }
 
   .add-label {
@@ -640,18 +763,51 @@
   }
 
   .add-btn {
-    width: 58px;
+    --cut: 10px;
+    width: 56px;
+    height: 56px;
     padding: 0;
     justify-content: center;
   }
 
+  .add-btn svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .case-sep {
+    display: none;
+  }
+
+  .pen-sample {
+    height: 23px;
+    margin: 0 3px 3px;
+  }
+
+  .pen-art {
+    padding-top: 6px;
+  }
+
+  /* la paleta, centrada sobre la barra, de ocho en fila y del ancho de la pantalla (chiquita: tres filas) */
+  .palette-pop {
+    right: 0;
+    left: 0;
+    width: min(100%, 340px);
+    max-width: none;
+    margin: 0 auto;
+    padding: 10px 11px 11px;
+    transform-origin: 50% 100%;
+  }
+
   .palette-grid {
-    grid-template-columns: repeat(6, 44px);
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 5px;
   }
 
   .swatch {
-    width: 44px;
-    height: 44px;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
   }
 
   .dock {
@@ -674,15 +830,23 @@
     padding: 0 11px;
   }
 
-  /* El estuche lleva un botón más (íconos): los botones chicos ceden un poco de sitio a los marcadores. */
-  .more-btn {
-    width: 42px;
-    height: 42px;
+  /* Los dos botones de la derecha (íconos y paleta) más chicos, para que quepan más instrumentos. */
+  .tool-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
   }
 
-  .more-btn svg {
+  .tool-btn svg {
     width: 23px;
     height: 23px;
+  }
+
+  .palette-chip {
+    right: 3px;
+    bottom: 3px;
+    width: 13px;
+    height: 13px;
   }
 
 }
@@ -693,6 +857,13 @@
 @media (max-width: 400px) {
   .ctx.is-editing .ctx-trash {
     display: none;
+  }
+}
+
+/* Celulares comunes: instrumentos un poco más angostos para que se vean tres a la vez. */
+@media (max-width: 400px) {
+  .case {
+    --pen-w: 48px;
   }
 }
 
@@ -732,10 +903,14 @@
   }
 
   .add-btn:hover {
-    background: #f59a48;
+    background: #8dc0ff;
   }
 
-  .marker:not([aria-pressed='true']):hover {
-    transform: translateY(2px);
+  .pen:not([aria-checked='true']):hover .pen-art {
+    transform: translateY(-3px);
+  }
+
+  .tool-btn:hover {
+    background: linear-gradient(180deg, #38414b, #232a31);
   }
 }

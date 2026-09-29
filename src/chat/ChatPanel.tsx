@@ -11,9 +11,6 @@ import { canListen, listen, type Listening } from './voice'
 
 const SUGGESTIONS = ['¿Qué debería hacer primero?', 'Ordena mis pendientes', 'Resume mi tablero', 'Arma un plan para hoy']
 
-/** Lo que se estaba escribiendo al cerrar el panel (para no perderlo si se abre otra vez). */
-let lastDraft = ''
-
 function Message({ m }: { m: ChatMessage }) {
   const bot = m.role === 'assistant'
   return (
@@ -57,7 +54,7 @@ function Welcome({ onPick }: { onPick: (t: string) => void }) {
       <p>Puedo ayudarte con tus pendientes: decidir qué hacer primero, ordenarlos, numerarlos o armar un plan. También puedes hablarme por voz.</p>
       {via === 'local' && (
         <p className="chat-callout">
-          Ahora estoy <b>sin conexión a Claude</b>, así que solo entiendo órdenes sencillas. Para conversar de verdad, conecta tu clave en{' '}
+          Ahora estoy <b>sin conexión a Claude</b>, así que solo entiendo órdenes sencillas. Para conversar de verdad, conéctame en{' '}
           <button type="button" className="chat-link" onClick={() => chat.getState().showSettings(true)}>
             ⚙ Ajustes
           </button>
@@ -109,7 +106,7 @@ function ChatPanelBody() {
   const consented = useChat((s) => s.settings.consented)
   const coarse = useCoarsePointer()
 
-  const [draft, setDraftState] = useState(lastDraft)
+  const draft = useChat((s) => s.draft)
   const [listening, setListening] = useState<Listening | null>(null)
   const [micError, setMicError] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -119,10 +116,7 @@ function ChatPanelBody() {
 
   const busy = status !== 'idle'
   const needsConsent = consented === null && via !== 'local'
-  const setDraft = (t: string) => {
-    lastDraft = t
-    setDraftState(t)
-  }
+  const setDraft = (t: string) => chat.getState().setDraft(t)
 
   // Esc: sale de los ajustes o cierra el panel (sin quitarle la selección al posit)
   useEffect(() => {

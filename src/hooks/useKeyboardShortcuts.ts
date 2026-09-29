@@ -19,6 +19,8 @@ export function useKeyboardShortcuts(): void {
         return
       }
       if (typing || e.altKey) return
+      // Enter o Espacio sobre un botón enfocado lo activan (con un posit seleccionado, Enter no debe abrir su escritura)
+      if ((e.key === 'Enter' || e.key === ' ') && t?.closest('button, a[href], [role="button"], [role="radio"], [role="switch"], [role="checkbox"]')) return
 
       const mod = e.ctrlKey || e.metaKey
       const sel = s.selectedId

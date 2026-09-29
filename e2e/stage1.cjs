@@ -77,11 +77,13 @@ async function desktop(browser, url) {
   s = await getState(page)
   check('Esc sale del modo escritura y deja el posit seleccionado', s.editingId === null && s.selectedId === created.id)
 
-  // Color con un marcador
+  // Color desde la paleta (se abre chiquita sobre el estuche)
+  await page.getByRole('button', { name: 'Colores del papel' }).click()
   await page.getByRole('button', { name: 'Color Cielo' }).click()
   s = await getState(page)
-  check('un marcador cambia el color del posit seleccionado', s.notes.find((n) => n.id === created.id).color === '#8ECDF5')
-  check('el marcador elegido pasa a ser el de los posits nuevos', s.defaultColor === '#8ECDF5')
+  check('un color de la paleta cambia el color del posit seleccionado', s.notes.find((n) => n.id === created.id).color === '#8ECDF5')
+  check('el color elegido pasa a ser el de los posits nuevos', s.defaultColor === '#8ECDF5')
+  check('elegir un color cierra la paleta', (await page.getByRole('dialog', { name: 'Colores del papel' }).count()) === 0)
 
   // Mover arrastrando desde la cinta
   const id = created.id
@@ -126,12 +128,12 @@ async function desktop(browser, url) {
   await page.keyboard.press('Escape')
 
   // Paleta completa
-  await page.getByRole('button', { name: 'Más colores' }).click()
+  await page.getByRole('button', { name: 'Colores del papel' }).click()
   await page.waitForSelector('.palette-pop')
   await shot(page, 'pc-03-paleta')
-  await page.getByRole('button', { name: 'Vino' }).click()
+  await page.getByRole('button', { name: 'Color Vino' }).click()
   s = await getState(page)
-  check('la paleta amplia cambia el color (Vino)', s.notes.find((n) => n.id === id).color === '#8E3E5A')
+  check('la paleta cambia el color (Vino)', s.notes.find((n) => n.id === id).color === '#8E3E5A')
   const ink = await page.evaluate((i) => getComputedStyle(document.querySelector(`[data-note-id="${i}"]`)).getPropertyValue('--note-ink').trim(), id)
   check('sobre un papel oscuro la tinta se vuelve clara', ink === '#fffaf0', ink)
 
@@ -387,12 +389,12 @@ async function phone(browser, url) {
   await page.getByRole('button', { name: 'Listo' }).click()
 
   // Paleta en pantalla angosta
-  await page.getByRole('button', { name: 'Más colores' }).click()
+  await page.getByRole('button', { name: 'Colores del papel' }).click()
   await page.waitForSelector('.palette-pop')
   await shot(page, 'cel-05-paleta')
   const pop = await page.locator('.palette-pop').boundingBox()
   check('(celular) la paleta completa cabe en la pantalla', pop.x >= 0 && pop.x + pop.width <= 390, JSON.stringify(pop))
-  await page.getByRole('button', { name: 'Turquesa' }).click()
+  await page.getByRole('button', { name: 'Color Turquesa' }).click()
 
   // Borrar y deshacer con el dedo
   const n0 = (await getState(page)).notes.length

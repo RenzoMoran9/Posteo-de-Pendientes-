@@ -5,25 +5,33 @@
  */
 export interface NoteFont {
   id: string
-  /** Nombre corto para el selector. */
+  /** Nombre del instrumento con el que se «escribe» (el que sale en el estuche y en el selector de letra). */
   name: string
+  /** Qué instrumento se dibuja en el estuche (ver src/ui/PenArt.tsx). */
+  pen: PenKind
   /** Lista de fuentes CSS (con respaldo por si aún no carga). */
   stack: string
   /** Multiplica el tamaño base para que todas las letras se vean del mismo tamaño que «Pluma». */
   scale: number
 }
 
+export type PenKind = 'fountain' | 'ballpoint' | 'pencil' | 'fineliner' | 'brush' | 'felt' | 'mechanical' | 'chisel'
+
 const fallback = "'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive"
 
+/**
+ * Cada tipo de letra es un instrumento de escritura: la pluma estilográfica escribe con trazo fluido, el lápiz con
+ * letra de cuaderno, el marcador grueso con trazo pesado… Se eligen en el estuche de la barra de abajo.
+ */
 export const NOTE_FONTS: readonly NoteFont[] = [
-  { id: 'kalam', name: 'Pluma', stack: `'Kalam', ${fallback}`, scale: 1 },
-  { id: 'caveat', name: 'Rápida', stack: `'Caveat', ${fallback}`, scale: 1.3 },
-  { id: 'patrick', name: 'Cuaderno', stack: `'Patrick Hand', ${fallback}`, scale: 1.08 },
-  { id: 'architects', name: 'Plano', stack: `'Architects Daughter', ${fallback}`, scale: 1.04 },
-  { id: 'gochi', name: 'Redonda', stack: `'Gochi Hand', ${fallback}`, scale: 1.02 },
-  { id: 'covered', name: 'Marcador fino', stack: `'Covered By Your Grace', ${fallback}`, scale: 1.08 },
-  { id: 'altura', name: 'Alta y angosta', stack: `'Just Another Hand', ${fallback}`, scale: 1.25 },
-  { id: 'marker', name: 'Marcador grueso', stack: `'Permanent Marker', ${fallback}`, scale: 0.86 },
+  { id: 'kalam', name: 'Pluma', pen: 'fountain', stack: `'Kalam', ${fallback}`, scale: 1 },
+  { id: 'caveat', name: 'Bolígrafo', pen: 'ballpoint', stack: `'Caveat', ${fallback}`, scale: 1.3 },
+  { id: 'patrick', name: 'Lápiz', pen: 'pencil', stack: `'Patrick Hand', ${fallback}`, scale: 1.08 },
+  { id: 'architects', name: 'Punta fina', pen: 'fineliner', stack: `'Architects Daughter', ${fallback}`, scale: 1.04 },
+  { id: 'gochi', name: 'Pincel', pen: 'brush', stack: `'Gochi Hand', ${fallback}`, scale: 1.02 },
+  { id: 'covered', name: 'Marcador', pen: 'felt', stack: `'Covered By Your Grace', ${fallback}`, scale: 1.08 },
+  { id: 'altura', name: 'Portaminas', pen: 'mechanical', stack: `'Just Another Hand', ${fallback}`, scale: 1.25 },
+  { id: 'marker', name: 'Marcador grueso', pen: 'chisel', stack: `'Permanent Marker', ${fallback}`, scale: 0.86 },
 ]
 
 export const DEFAULT_FONT_ID = NOTE_FONTS[0].id

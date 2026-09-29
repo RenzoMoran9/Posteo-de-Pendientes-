@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { factsOf } from './analyze'
-import { Brain, LIMITS, RED_PAPER, type TypedInput } from './brain'
+import { ASK, Brain, LIMITS, MANY_OPEN, RED_PAPER, type TypedInput } from './brain'
 import { rngFrom } from './cloud'
 import { PHRASES } from './phrases'
 
@@ -112,6 +112,30 @@ describe('sugerencias', () => {
     const facts = factsOf({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: line }, { type: 'inlineIcon', attrs: { icon: 'telefono' } }] }] })
     expect(make(1, 0.05).brain.onTyped(typed({ lastLine: line, facts }))?.suggest).toBeUndefined()
     expect(make(1, 0.05).brain.onTyped(typed({ lastLine: line, facts: factsOf(doc(line)) }))?.suggest).toMatchObject({ icon: 'telefono' })
+  })
+
+  it('ante el cansancio o un posit larguísimo, ofrece pedirle ayuda a Claude', () => {
+    const tired = make(1, 0.05).brain.onTyped(typed({ lastLine: 'Ya no puedo más, mucho trabajo', facts: factsOf(doc('Ya no puedo más, mucho trabajo')) }))
+    expect(tired?.key).toBe('stress')
+    expect(tired?.suggest).toEqual({ kind: 'ask', label: 'Pedirle ayuda a Claude', prompt: ASK.stress })
+    const long = factsOf(doc('x'.repeat(400)))
+    const c = make(1, 0.05).brain.onTyped(typed({ noteId: 'l', lastLine: 'x', facts: long }))
+    expect(c?.key).toBe('long')
+    expect(c?.suggest).toEqual({ kind: 'ask', label: 'Ordenar con Claude', prompt: ASK.order })
+  })
+
+  it('con una lista larga de pendientes abiertos y sin otra sugerencia, ofrece ordenarla con Claude', () => {
+    const items = Array.from({ length: MANY_OPEN }, (_, i) => `Pendiente número ${i + 1}`)
+    const many = factsOf({ type: 'doc', content: [{ type: 'taskList', content: items.map((t) => ({ type: 'taskItem', attrs: { checked: false }, content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })) }] })
+    const c = make(1, 0.05).brain.onTyped(typed({ lastLine: '¿Cuándo llega el pedido?', facts: many }))
+    expect(c?.key).toBe('question')
+    expect(c?.suggest).toMatchObject({ kind: 'ask', prompt: ASK.order })
+    // si ya hay otra cosa útil que ofrecer, esa va primero
+    const call = make(1, 0.05).brain.onTyped(typed({ lastLine: 'Llamar a Juan', facts: many }))
+    expect(call?.suggest).toMatchObject({ kind: 'icon', icon: 'telefono' })
+    // con pocos abiertos no
+    const few = factsOf({ type: 'doc', content: [{ type: 'taskList', content: items.slice(0, 3).map((t) => ({ type: 'taskItem', attrs: { checked: false }, content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })) }] })
+    expect(make(1, 0.05).brain.onTyped(typed({ lastLine: '¿Cuándo llega el pedido?', facts: few }))?.suggest).toBeUndefined()
   })
 
   it('a veces no ofrece nada (no insiste) y los temas sin ícono nunca ofrecen', () => {

@@ -24,6 +24,12 @@
 @media (min-width: 1000px) {
   .mascot {
     --m-size: 108px;
+  }
+}
+
+/* Con la pantalla bien ancha cabe en la esquina, al lado del estuche (que mide hasta 940 px); si no, se apoya sobre él. */
+@media (min-width: 1230px) {
+  .mascot {
     right: 26px;
     bottom: 18px;
   }
@@ -505,7 +511,7 @@
   filter: drop-shadow(1.5px 2px 0 rgb(18 22 26 / 0.35));
 }
 
-@media (min-width: 1000px) {
+@media (min-width: 1230px) {
   .mascot-peek {
     right: 30px;
     bottom: 10px;

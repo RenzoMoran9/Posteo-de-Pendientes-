@@ -22,6 +22,7 @@ function Switch({ checked, onChange, label, hint }: { checked: boolean; onChange
 function Connection() {
   const via = useChat((s) => s.via)
   const sampleOk = useChat((s) => s.sampleOk)
+  const host = useChat((s) => s.host)
   const hasKey = useChat((s) => s.hasKey)
   const remember = useChat((s) => s.settings.remember)
   const [key, setKey] = useState('')
@@ -41,14 +42,20 @@ function Connection() {
           Estás usando <b>tu clave de Anthropic</b>. La conversación va directo de este aparato a Anthropic; la clave no pasa por ningún otro sitio.
         </p>
       )}
-      {via === 'local' && (
+      {via === 'local' && !host && (
         <p className="chat-set-p">
           Ahora estoy <b>sin conexión a Claude</b>: solo entiendo órdenes sencillas (resumen, «qué hago primero», ordenar por urgencia, numerar).
           Para conversar de verdad, pega tu clave de Anthropic aquí abajo.
         </p>
       )}
+      {via === 'local' && host && (
+        <p className="chat-set-p">
+          Ahora estoy <b>sin conexión a Claude</b>: este enlace de prueba no tiene permiso para usar tu cuenta (o no lo autorizaste), y desde aquí no se
+          puede usar una clave. Autoriza el uso cuando te lo pida, o abre la página pública para conectar tu clave.
+        </p>
+      )}
 
-      {sampleOk !== true && (
+      {sampleOk !== true && !host && (
         <>
           {hasKey ? (
             <div className="chat-key-row">
@@ -109,6 +116,7 @@ function Connection() {
 export function ChatSettings() {
   const settings = useChat((s) => s.settings)
   const sampleOk = useChat((s) => s.sampleOk)
+  const host = useChat((s) => s.host)
   const count = useChat((s) => s.messages.length)
   const mode = useStore((s) => s.settings.mascot)
   const moved = useStore((s) => s.settings.mascotPos !== null)
@@ -131,7 +139,7 @@ export function ChatSettings() {
             >
               <span className="chat-model-name">{m.name}</span>
               <small>{m.blurb}</small>
-              {sampleOk !== true && <small className="chat-model-cost">{m.cost} por mensaje</small>}
+              {sampleOk !== true && !host && <small className="chat-model-cost">{m.cost} por mensaje</small>}
             </button>
           ))}
         </div>

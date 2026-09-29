@@ -56,6 +56,12 @@ const dayKey = (d = new Date()): string => `${d.getFullYear()}-${String(d.getMon
 // ───────────── mostrar un comentario ─────────────
 
 function applySuggest(noteId: string, sg: Suggest): void {
+  if (sg.kind === 'ask' && sg.prompt) {
+    // se abre la conversación con la pregunta ya escrita (o enviada, si ya se aceptó el aviso de privacidad)
+    ui().hush()
+    chat.getState().ask(sg.prompt)
+    return
+  }
   const s = store.getState()
   const note = s.notes[noteId]
   if (!note) return

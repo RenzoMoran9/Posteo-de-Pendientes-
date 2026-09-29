@@ -8,6 +8,11 @@ describe('letras de los posits', () => {
     expect(new Set(NOTE_FONTS.map((f) => f.name)).size).toBe(NOTE_FONTS.length)
   })
 
+  it('cada letra es un instrumento de escritura distinto (para dibujarlo en el estuche)', () => {
+    expect(new Set(NOTE_FONTS.map((f) => f.pen)).size).toBe(NOTE_FONTS.length)
+    expect(NOTE_FONTS.map((f) => f.name)).toEqual(['Pluma', 'Bolígrafo', 'Lápiz', 'Punta fina', 'Pincel', 'Marcador', 'Portaminas', 'Marcador grueso'])
+  })
+
   it('la primera es la de siempre (Kalam) y es la de respaldo', () => {
     expect(DEFAULT_FONT_ID).toBe('kalam')
     expect(fontById(undefined).id).toBe('kalam')

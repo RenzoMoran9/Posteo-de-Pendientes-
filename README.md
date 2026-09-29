@@ -12,7 +12,8 @@ se ven igual en ambos. La visión completa del proyecto está en [`CLAUDE.md`](.
 | 2 | Viñetas, pendientes con casillas y tachado tipo lápiz | ✅ hecha |
 | 3 | Íconos dibujados a mano (en el tablero, en el posit y dentro del texto) y letras manuscritas (negrita, cursiva, subrayado) | ✅ hecha |
 | 4 | Varios tableros | ⏳ |
-| 5 | Sincronización en la nube + inicio de sesión (Supabase) y, con eso, el «cerebro» de Chispa con un modelo de lenguaje | ⏳ |
+| 5 | Sincronización en la nube + inicio de sesión (Supabase) | ⏳ |
+| Extra | La mascota de Claude (muñeco de bloques en 3D), **conversar con Claude** sobre tus pendientes, y la barra de instrumentos de escritura | ✅ hecha |
 
 ### Qué hace la Etapa 1
 
@@ -23,8 +24,8 @@ se ven igual en ambos. La visión completa del proyecto está en [`CLAUDE.md`](.
 - **Crear** con «＋ Nuevo» (o `N`, o doble clic en el fondo); el posit nace en un hueco libre, sin tapar a otros.
 - **Mover** arrastrando desde la cinta (o desde cualquier parte si no estás escribiendo);
   **redimensionar** con el tirador de la esquina; **borrar** con «Borrar» (o `Supr`) y **Deshacer** al instante.
-- **Color**: estuche de marcadores para cambiarlo en un toque + paleta completa de 24 colores.
-  La tinta se vuelve clara sola sobre papeles oscuros.
+- **Color**: paleta chiquita de 24 colores que se abre desde el botón de la derecha de la barra (muestra el color en
+  uso). La tinta se vuelve clara sola sobre papeles oscuros.
 - **Un toque selecciona; otro toque escribe** (así el teclado del celular no salta al mover o mirar).
 - **Imán a la cuadrícula** (activable): los posits se alinean a los cuadros del cuaderno.
 - **Guardado automático** en el dispositivo (indicador «Guardado»).
@@ -68,40 +69,93 @@ se ven igual en ambos. La visión completa del proyecto está en [`CLAUDE.md`](.
   muestra los grados y se pega a 0°, 45°, 90°… (con `Mayús`, de 15° en 15°; con `Alt`, libre). Los botones ↺ ↻ (o las
   teclas `[` y `]`) lo giran al siguiente ángulo de 15°, así un ícono chueco se endereza en un toque. Al agrandar
   un ícono girado, el tirador sigue bajo el dedo (crece desde su centro).
-- **Letras manuscritas a elegir por posit** (botón «Letra»): Pluma (Kalam, la de siempre), Rápida, Cuaderno,
-  Plano, Redonda, Marcador fino, Alta y angosta y Marcador grueso, ajustadas para verse del mismo tamaño.
+- **Letras manuscritas a elegir por posit**, como instrumentos de escritura (ver «La barra de instrumentos»): Pluma
+  (Kalam, la de siempre), Bolígrafo, Lápiz, Punta fina, Pincel, Marcador, Portaminas y Marcador grueso, ajustadas para
+  verse del mismo tamaño. También se cambian con el botón «Letra» de la barra de acciones.
 - **Negrita, cursiva y subrayado** mientras se escribe (botones o `Ctrl+B` / `Ctrl+I` / `Ctrl+U`).
 
-### Extra: Chispa, la mascota
+### Extra: la barra de instrumentos
 
-Una mascota propia (dibujada con el mismo generador de trazo a mano de los íconos; no es el logo ni la mascota de
-nadie) que vive sobre el estuche y hace de asistente. Todo ocurre **en tu aparato**: no envía nada a ninguna parte.
+La barra de abajo tiene el aire de un estuche de instrumentos (chapa oscura, esquinas cortadas, azul acero):
 
-- **Aspecto 3D de juguete**: el cuerpo, la chispa de la cabeza y la cara flotan a distinta profundidad dentro de un
-  escenario con perspectiva, con degradados de luz, ojos brillantes y sombra en el suelo. Gira hacia lo que mira
-  y se ve el paralaje.
-- **Te ve**: sus pupilas siguen al cursor (o al dedo); si dejas el ratón quieto, siguen el cursor de escritura o el
-  posit seleccionado; cada tanto mira por ahí y **parpadea** (a veces doble). Se **duerme** (con «zzz») tras 90 s sin
-  tocar nada y se despierta al moverte.
-- **Comenta lo que escribes**, en una nube dibujada a mano que se va escribiendo letra por letra (y ella mueve la
-  boca). Espera a que hagas una pausa, nunca te interrumpe mientras tecleas, y no es pesada: como mucho un comentario
-  cada 20 s y ocho cada 10 min, sin repetir tema. Entiende urgencias, hoy/mañana/días, horas, montos, trámites de
-  compras (expediente, TDR, factura, orden de compra…), insumos médicos, llamadas, correos, reuniones, preguntas,
-  cansancio y posits muy largos o con líneas que parecen pendientes.
-- **Ofrece ayuda con un botón**: «Pintar de rojo» un posit urgente, «Poner sirena», «Poner teléfono»… se aceptan
-  con un toque y no te sacan del posit ni cierran el teclado.
-- **Celebra**: al marcar un pendiente festeja (ojos contentos, brazos arriba) y, a veces, dice «Van 3 de 5»; al
-  terminar un posit o todo el tablero, más. Al abrir la app saluda según la hora y resume tus pendientes.
-- **Tócala** para que te diga un consejo o cuántos pendientes te quedan, y para elegir **«Que calle»** (sigue mirando
-  pero no comenta) u **«Ocultar»** (solo asoma su chispa; tócala para que vuelva). Se recuerda en cada dispositivo.
-- En el celular se apoya sobre el estuche (sube cuando aparece la barra de acciones) y se hace más chica con el
-  teclado abierto.
+- **«Nuevo»** pega un posit en un hueco libre.
+- **Ocho instrumentos de escritura, dibujados en vectores propios** (pluma estilográfica, bolígrafo, lápiz, punta fina,
+  pincel, marcador, portaminas y marcador grueso), cada uno con su brillo y su volumen. **Cada instrumento es un tipo de
+  letra**, y debajo trae una muestra («Hola») escrita con esa letra. El que tienes en la mano se ilumina (pestaña
+  azul arriba, el instrumento se levanta) y vale para el posit seleccionado **y** para los posits nuevos; si
+  seleccionas otro posit, el instrumento activo pasa a ser el de ese posit. Se recuerda en cada dispositivo.
+- **Íconos** y **paleta de colores** a la derecha. La paleta es chiquita (24 cuadritos de 34 px, de a ocho en fila
+  y tres filas) y el botón muestra siempre el color del papel en uso.
+- En el celular la tira de instrumentos se desliza con el dedo (se ven tres a la vez) y se acerca sola al que tienes
+  en la mano. Con el teclado abierto, la barra cede su sitio a «Listo».
 
-Es un asistente de **reglas** (`src/mascot/`): lee las palabras del posit y decide qué decir. Para que sea más
-«inteligente» (entender frases libres, resumir, redactar) habría que conectarla a un modelo de lenguaje; el plan y sus
-requisitos están en la Etapa 5.
+### Extra: la mascota de Claude
 
-Atajos de teclado (PC): `N` nuevo · `I` íconos · `Enter` escribir · `Esc` salir · `Supr` borrar · `Ctrl+D` duplicar ·
+Un muñeco de bloques como el impreso en 3D de la mascota de Claude (cuerpo, dos bracitos y cuatro patas), hecho **de
+verdad en 3D con CSS**: caras con perspectiva, luz arriba a la izquierda (cada cara con su tono) y sombra en el suelo.
+Vive sobre el estuche y hace de asistente. Los comentarios de su nube salen **de reglas locales** (no usan IA ni envían
+nada); la conversación de verdad con Claude es la de la sección siguiente.
+
+- **Te ve**: gira hacia el cursor (o el dedo) y corre los ojos sobre la cara; si dejas el ratón quieto, mira el cursor
+  de escritura, el posit seleccionado o, con la conversación abierta, el campo donde escribes; cada tanto mira por ahí
+  y **parpadea** (a veces doble). Se **duerme** (con «zzz») tras 90 s sin tocar nada y se despierta al moverte.
+- **Se le nota el ánimo con el cuerpo**: contenta (ojos «^ ^», brazos arriba y destellos), sorprendida (ojos altos, «¡!»),
+  pensando (mira arriba y levanta un bracito), dormida (rayitas), hablando (asiente y mueve los bracitos) y, si la
+  llevas en brazos, **las patitas cuelgan y patalean**.
+- **Comenta lo que escribes**, en una nube dibujada a mano que se va escribiendo letra por letra. Espera a que hagas una
+  pausa, nunca te interrumpe mientras tecleas, y no es pesada: como mucho un comentario cada 20 s y ocho cada 10 min,
+  sin repetir tema. Entiende urgencias, hoy/mañana/días, horas, montos, trámites de compras (expediente, TDR, factura,
+  orden de compra…), insumos médicos, llamadas, correos, reuniones, preguntas y cansancio.
+- **Ofrece ayuda con un botón** («Pintar de rojo» un posit urgente, «Poner sirena», «Poner teléfono»…), que no te
+  saca del posit ni cierra el teclado. **Celebra** al marcar pendientes y saluda según la hora al abrir la app.
+- **Tócala para conversar** con Claude. Se puede **arrastrar** a otro sitio (con el dedo o el ratón) y ahí se queda.
+  Los ajustes («Que calle», «Ocultar», «A su sitio») están dentro de la conversación (⚙).
+- En la PC ancha (≥ 1230 px) está en la esquina, al lado de la barra; en pantallas más angostas, apoyada sobre la barra
+  (sube cuando aparece la barra de acciones); en el celular se hace más chica con el teclado abierto.
+
+### Extra: hablar con Claude
+
+Toca a la mascota (o pulsa `C`) y se abre la conversación: un panel de chapa con una hoja de cuaderno donde escribes
+(o **dictas por voz**) y Claude contesta. Está pensado para **tus pendientes y nada más**: si le hablas de otra cosa, lo
+dice con amabilidad y te devuelve a tu tablero.
+
+- **Ve tu tablero**: con cada mensaje recibe una «foto» del tablero activo (los posits como n1, n2…, con sus listas y
+  renglones numerados, casillas marcadas, la fecha de hoy). Así puede decirte qué hacer primero, resumirte, partir una
+  tarea grande, redactar renglones claros o aconsejarte cómo ordenarlos. Los posits se envían como *datos*: si un posit
+  trae órdenes escritas para la IA, se ignoran.
+- **Propone cambios, tú decides**: «ordenar por prioridad», «numerar», «crear un posit con este plan», «marcar como
+  hecho», «corregir un renglón», «pintar de otro color». Aparecen como un posit amarillo en la conversación, con la vista
+  previa de cómo quedaría y los botones **Aplicar** / **No, gracias**. Nada cambia hasta que aplicas, y después se puede
+  **Deshacer** (se restaura el posit tal cual estaba; si lo tocaste después, no te pisa tu trabajo). Cada propuesta se
+  revisa contra el tablero antes de aplicarse (posits y renglones que existan, sin cambios entre medias).
+- **Tres formas de conectarse** (el encabezado dice cuál se usa):
+  1. **Con tu cuenta de Claude, sin clave**: dentro del enlace de prueba de claude.ai. Autorizas una vez y lo que se
+     gasta sale de tu plan.
+  2. **Con tu propia clave de Anthropic** (en la página pública): la pegas en ⚙ Ajustes y la conversación va directo de
+     tu navegador a `api.anthropic.com` (el SDK oficial se carga solo al primer mensaje). Crea una clave solo para esto
+     y ponle un límite de gasto mensual. Se guarda solo en ese aparato (puedes elegir que se olvide al cerrar la
+     pestaña) y se borra con «Olvidar clave». Ojo: si publicas la app en GitHub Pages, todas tus páginas de
+     `tu-usuario.github.io` comparten el mismo almacenamiento del navegador; si tienes otras páginas ahí, no
+     marques «Recordar la clave».
+  3. **Sin conexión a Claude (modo sencillo)**: unas cuantas órdenes por reglas («¿qué tengo pendiente?», «¿qué hago
+     primero?», «ordena», «numera») con el mismo Aplicar / Deshacer. No es IA y lo dice en cada respuesta.
+- **Modelo a elegir** (⚙ Ajustes): Claude Opus 5.5 (la más inteligente, la de siempre), Sonnet 5.5 (más económica) o
+  Haiku 4.5 (rápida y barata). Con clave propia, un mensaje con el tablero cuesta del orden de 2 centavos de dólar con
+  Opus, 1 con Sonnet y 0,3 con Haiku (tarifas de API; depende del tamaño de tu tablero).
+- **Privacidad**: antes de la primera consulta se explica qué se envía (el texto de los posits del tablero activo,
+  nada de los otros tableros) y se puede decir «No leer mis posits» (entonces Claude solo sabe cuántos hay). En modo
+  sencillo no sale nada del aparato. La conversación se guarda en el aparato (se borra en ⚙ Ajustes).
+- **Voz**: el micrófono dicta lo que dices y lo envía al terminar; «Leer las respuestas en voz alta» las lee con la
+  voz del aparato. Depende del navegador (en Chrome, Edge y Safari suele funcionar el dictado; si no, el botón no sale).
+- Mientras piensa, la mascota se queda pensando; mientras escribe la respuesta, asiente y mueve los bracitos; se puede
+  **Detener** en cualquier momento. Los errores se explican en español (clave mala, sin saldo, límite de uso, sin internet).
+
+> **Qué se probó y qué no.** Las pruebas de la conversación usan la API de Anthropic **simulada** (respuestas en
+> streaming con el mismo formato que las reales, interceptadas en el navegador) y una cuenta de Claude simulada: en el
+> entorno de desarrollo no hay salida a Anthropic, así que aún no se ha hablado con el Claude de verdad desde esta app.
+> La primera conversación real es la prueba que falta; si algo no sale como se espera, las respuestas de error dicen por qué.
+
+Atajos de teclado (PC): `N` nuevo · `I` íconos · `C` conversar con Claude · `Enter` escribir · `Esc` salir · `Supr` borrar · `Ctrl+D` duplicar ·
 flechas mueven el posit o el ícono · `+` `-` `0` zoom (con un ícono seleccionado, su tamaño) · `[` `]` girar el ícono ·
 `F` ver todo · `Ctrl+Mayús+8` viñetas · `Ctrl+Mayús+9` pendientes · `Ctrl+B` `Ctrl+I` `Ctrl+U` estilo del texto.
 
@@ -116,8 +170,8 @@ npm run dev          # http://localhost:5173  (y la dirección de "Network" para
 npm run build        # compila a dist/
 npm run preview      # sirve dist/ en http://localhost:4173
 npm test             # pruebas unitarias (lógica de datos, geometría, guardado)
-npm run e2e          # pruebas en un navegador real (Etapas 1 a 3, giro de íconos y mascota), tamaño PC y celular con toques reales (necesita `npm run build`)
-npm run icons        # vuelve a generar los íconos (src/icons/data.generated.ts) y a Chispa (src/mascot/art.generated.ts)
+npm run e2e          # pruebas en un navegador real (Etapas 1 a 3, giro de íconos, mascota, conversación y barra de instrumentos), tamaño PC y celular con toques reales (necesita `npm run build`)
+npm run icons        # vuelve a generar los íconos (src/icons/data.generated.ts) y los adornos de la mascota (src/mascot/art.generated.ts)
 npm run icons:sheet -- --cat urgente   # hoja de revisión de los íconos (PNG en scripts/icons/out/)
 ```
 
@@ -140,6 +194,15 @@ npm run icons:sheet -- --cat urgente   # hoja de revisión de los íconos (PNG e
   determinista (el mismo ícono sale siempre igual). El resultado (`src/icons/data.generated.ts`, unos 130 KB)
   son datos estáticos: en la app no se calcula nada, y la tinta y el grosor se ajustan con CSS según dónde
   se pegue el ícono (papel oscuro → tinta clara).
+- **La mascota en 3D real con CSS** (`src/mascot/ClawdArt.tsx`, `clawd.ts`, `src/styles/mascot.css`): cada bloque (cuerpo,
+  brazos, patas) son cinco o seis caras con `translateZ` y `rotateX/Y` dentro de un escenario con `perspective`; las
+  medidas están en unidades (`--u`) y todo escala con la caja de la mascota. La mirada, el parpadeo y los gestos se
+  escriben directo en el DOM (variables CSS), sin pasar por React.
+- **La conversación** (`src/chat/`): `context.ts` arma la «foto» del tablero; `prompt.ts` trae las instrucciones para
+  Claude; `protocol.ts` y `actions.ts` leen con desconfianza las propuestas (`<acciones>` en JSON), las convierten en un
+  plan con descripción y las aplican/deshacen con `docOps.ts` (operaciones puras sobre el documento del posit);
+  `transports/` tiene las dos conexiones (`sample` para la cuenta de Claude del enlace de prueba, `api` para la clave
+  propia con `@anthropic-ai/sdk`); `local.ts` es el modo sencillo; `chatStore.ts` une todo.
 - **Datos locales primero** (`src/store/`): Zustand + guardado automático en el dispositivo. Los identificadores son
   UUID y cada posit lleva `updatedAt`, pensando ya en la sincronización de la Etapa 5.
 - Las medidas de los posits están en **unidades del tablero** y las letras van incluidas en la app:
@@ -149,9 +212,10 @@ npm run icons:sheet -- --cat urgente   # hoja de revisión de los íconos (PNG e
 src/
   board/     tablero: vista (zoom/pan), gestos, posit, ícono pegado, editor
   icons/     catálogo, buscador y dibujo de los íconos (los datos vienen de scripts/icons)
-  mascot/    Chispa: dibujo en capas 3D, mirada y parpadeo, nube de comentarios, cerebro de reglas
+  mascot/    la mascota: modelo de bloques en 3D (CSS), mirada y parpadeo, nube de comentarios, cerebro de reglas
+  chat/      conversación con Claude: foto del tablero, propuestas con Aplicar/Deshacer, conexiones, voz, panel
   store/     datos: almacén, guardado automático
-  ui/        barra superior, estuche de marcadores, panel de íconos, letra y estilo, acciones, avisos
+  ui/        barra superior, estuche de instrumentos (plumas), panel de íconos, letra y estilo, acciones, avisos
   lib/       geometría, paleta y contraste, letras, utilidades
   styles/    tokens, tablero, posit, íconos, interfaz
 scripts/icons/  dibujos de los íconos y generador de trazo a mano
