@@ -18,8 +18,8 @@ export class ViewController {
   private listeners = new Set<Listener>()
   private anim = 0
   private lastZ = Number.NaN
-  /** Espacio ocupado por las barras flotantes (arriba y abajo). */
-  private chrome: Insets = { top: 68, right: 10, bottom: 120, left: 10 }
+  /** Espacio ocupado por las barras flotantes (arriba y abajo) y margen a los lados para que los tiradores se vean enteros. */
+  private chrome: Insets = { top: 68, right: 24, bottom: 120, left: 24 }
 
   attach(board: HTMLElement, world: HTMLElement): void {
     this.board = board
@@ -99,7 +99,7 @@ export class ViewController {
   ensureVisible(rect: Rect, animate = true): void {
     const r = this.rect()
     const c = this.chrome
-    const pad = 14
+    const pad = 8
     const left = c.left + pad
     const right = r.width - c.right - pad
     const top = c.top + pad
