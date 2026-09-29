@@ -401,6 +401,10 @@ async function phone(browser, url) {
   const chip = await page.locator('.mb-chip').first().boundingBox()
   check('la nube cabe en la pantalla y sus botones miden ≥ 36 px', inside(b2, 390, 844, 4) && chip.height >= 36 && chip.width >= 60, JSON.stringify({ b2, chip }))
   await shot(page, 'mascota-cel-02-toque')
+  // la nube se va sola tras unos segundos (y la captura tarda): se vuelve a llamar justo antes de tocar el botón
+  await poke(page)
+  await waitBubble(page, 1500)
+  await page.waitForTimeout(600)
   await page.getByRole('button', { name: 'Que calle' }).tap()
   await page.waitForTimeout(250)
   check('«Que calle» funciona con el dedo', (await mode(page)) === 'quiet')
