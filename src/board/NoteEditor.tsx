@@ -1,38 +1,10 @@
 import { useEffect } from 'react'
 import type { JSONContent } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import { Placeholder } from '@tiptap/extensions'
 import { store } from '../store/store'
 import { keepCaretVisible } from './caret'
 import { registerEditor } from './editors'
-
-/**
- * Etapa 1: solo texto libre (párrafos). Las viñetas y los pendientes con casilla
- * se activan en la Etapa 2, y la negrita/cursiva/subrayado en la Etapa 3.
- */
-const extensions = [
-  StarterKit.configure({
-    blockquote: false,
-    bold: false,
-    bulletList: false,
-    code: false,
-    codeBlock: false,
-    dropcursor: false,
-    gapcursor: false,
-    heading: false,
-    horizontalRule: false,
-    italic: false,
-    link: false,
-    listItem: false,
-    listKeymap: false,
-    orderedList: false,
-    strike: false,
-    trailingNode: false,
-    underline: false,
-  }),
-  Placeholder.configure({ placeholder: 'Escribe aquí…', showOnlyWhenEditable: false }),
-]
+import { noteExtensions } from './extensions'
 
 interface Props {
   id: string
@@ -42,7 +14,7 @@ interface Props {
 
 export function NoteEditor({ id, initialDoc, editing }: Props) {
   const editor = useEditor({
-    extensions,
+    extensions: noteExtensions,
     content: initialDoc ?? undefined,
     editable: false,
     editorProps: {

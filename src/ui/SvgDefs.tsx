@@ -15,6 +15,13 @@ export function SvgDefs() {
           <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="1" seed="3" result="noise" />
           <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.6" xChannelSelector="R" yChannelSelector="G" />
         </filter>
+        {/* Textura de grafito para el tachado: borde un poco áspero y el trazo se "corta" apenas donde el lápiz no apretó. */}
+        <filter id="pencil" x="-2%" y="-60%" width="104%" height="220%" colorInterpolationFilters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="11" result="grain" />
+          <feDisplacementMap in="SourceGraphic" in2="grain" scale="1.7" xChannelSelector="R" yChannelSelector="G" result="rough" />
+          <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 2.05" result="speckle" />
+          <feComposite in="rough" in2="speckle" operator="in" />
+        </filter>
       </defs>
     </svg>
   )

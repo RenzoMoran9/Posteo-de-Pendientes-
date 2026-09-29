@@ -68,6 +68,22 @@ export const textDoc = (...paragraphs: string[]): JSONContent => ({
   content: paragraphs.map((t) => (t ? { type: 'paragraph', content: [{ type: 'text', text: t }] } : { type: 'paragraph' })),
 })
 
+/** Un título y una lista de pendientes: `items` son [texto, ¿hecho?]. */
+export const taskDoc = (title: string, items: Array<[string, boolean]>): JSONContent => ({
+  type: 'doc',
+  content: [
+    { type: 'paragraph', content: [{ type: 'text', text: title }] },
+    {
+      type: 'taskList',
+      content: items.map(([text, checked]) => ({
+        type: 'taskItem',
+        attrs: { checked },
+        content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+      })),
+    },
+  ],
+})
+
 /** Estado inicial de alguien que abre la app por primera vez. */
 export function createDefaultState(now = Date.now()): PersistedState {
   const boardId = uid()
@@ -82,11 +98,12 @@ export function createDefaultState(now = Date.now()): PersistedState {
     h: 240,
     z: 1,
     color: PAPER_COLORS[0].hex,
-    doc: textDoc(
-      '¡Bienvenido a tu tablero!',
-      'Toca este posit y vuelve a tocarlo para escribir.',
-      'Arrástralo desde la cinta y cámbiale el color con los marcadores de abajo.',
-    ),
+    doc: taskDoc('¡Bienvenido a tu tablero!', [
+      ['Toca este posit y vuelve a tocarlo para escribir', false],
+      ['Marca una casilla: se tacha como con lápiz', true],
+      ['Arrástralo desde la cinta', false],
+      ['Cambia el color con los marcadores', false],
+    ]),
     createdAt: now,
     updatedAt: now,
   }

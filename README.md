@@ -9,7 +9,7 @@ se ven igual en ambos. La visión completa del proyecto está en [`CLAUDE.md`](.
 | Etapa | Qué incluye | Estado |
 | --- | --- | --- |
 | 1 | Tablero, posits arrastrables/redimensionables, color, texto, guardado automático | ✅ hecha |
-| 2 | Viñetas, pendientes con casillas y tachado tipo lápiz | ⏳ |
+| 2 | Viñetas, pendientes con casillas y tachado tipo lápiz | ✅ hecha |
 | 3 | Íconos dibujados a mano y fuentes manuscritas (negrita, cursiva, subrayado) | ⏳ |
 | 4 | Varios tableros | ⏳ |
 | 5 | Sincronización en la nube + inicio de sesión (Supabase) | ⏳ |
@@ -31,8 +31,23 @@ se ven igual en ambos. La visión completa del proyecto está en [`CLAUDE.md`](.
 - Pensado para el **celular**: zonas táctiles grandes, el teclado no tapa lo que escribes, la barra inferior
   queda al alcance del pulgar.
 
+### Qué suma la Etapa 2
+
+- **Viñetas y pendientes con casilla** dentro del posit. Al escribir, la barra inferior cambia a
+  «Listo · Viñetas · Pendientes · Borrar» (en el celular, solo íconos). También funcionan los atajos de
+  escritura: `- ` + espacio arma una viñeta y `[ ] ` + espacio un pendiente. `Enter` sigue la lista y
+  `Enter` en un renglón vacío sale de ella.
+- **Pasar de pendientes a viñetas (o al revés) convierte toda la lista**, con el cursor donde estaba.
+- **Marcar una casilla no necesita abrir el posit**: con un toque basta (zona táctil de ~44 px), sin teclado.
+  Pensado para revisar y palomear desde el celular.
+- **Tachado de lápiz**: al marcar, un trazo de grafito recorre cada renglón (medido sobre el texto real,
+  así que sigue los saltos de línea) y la fila baja a ~55 % de opacidad; la palomita se dibuja de un solo trazo.
+  No se reanima al cargar un pendiente que ya estaba marcado, sigue al texto si lo editas o cambias el
+  tamaño del posit, y respeta «reducir movimiento» del sistema.
+
 Atajos de teclado (PC): `N` nuevo · `Enter` escribir · `Esc` salir · `Supr` borrar · `Ctrl+D` duplicar ·
-flechas mueven el posit · `+` `-` `0` zoom · `F` ver todo.
+flechas mueven el posit · `+` `-` `0` zoom · `F` ver todo ·
+`Ctrl+Mayús+8` viñetas · `Ctrl+Mayús+9` pendientes.
 
 ## Cómo probarla
 
@@ -45,7 +60,7 @@ npm run dev          # http://localhost:5173  (y la dirección de "Network" para
 npm run build        # compila a dist/
 npm run preview      # sirve dist/ en http://localhost:4173
 npm test             # pruebas unitarias (lógica de datos, geometría, guardado)
-npm run e2e          # pruebas en un navegador real, tamaño PC y celular con toques reales (necesita `npm run build`)
+npm run e2e          # pruebas en un navegador real (Etapas 1 y 2), tamaño PC y celular con toques reales (necesita `npm run build`)
 ```
 
 `npm run e2e` deja capturas en `e2e/out/`.
@@ -59,8 +74,9 @@ npm run e2e          # pruebas en un navegador real, tamaño PC y celular con to
 - **Aspecto**: el fondo es una hoja de cuaderno cuadriculada crema; la interfaz es de "taller" (chapa de grafito,
   azul acero y naranja de seguridad, esquinas casi rectas, trazo grueso con sombra dura y un temblor SVG de dibujo a mano).
   Todo son *tokens* en `src/styles/tokens.css`, así que cambiar colores o letras es tocar un solo archivo.
-- **TipTap (ProseMirror)** dentro del posit; el documento se guarda como JSON, listo para las listas
-  y los pendientes de la Etapa 2.
+- **TipTap (ProseMirror)** dentro del posit; el documento se guarda como JSON. La casilla con su tachado
+  (`src/board/taskItem.ts`) es una vista propia del pendiente: se puede marcar con el posit cerrado y dibuja
+  el lápiz con SVG sobre los renglones reales.
 - **Datos locales primero** (`src/store/`): Zustand + guardado automático en el dispositivo. Los identificadores son
   UUID y cada posit lleva `updatedAt`, pensando ya en la sincronización de la Etapa 5.
 - Las medidas de los posits están en **unidades del tablero** y las letras van incluidas en la app:

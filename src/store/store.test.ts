@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { GRID } from '../lib/geometry'
-import { NOTE_DEFAULTS, createDefaultState, createPositsStore, textDoc } from './store'
+import { NOTE_DEFAULTS, createDefaultState, createPositsStore, taskDoc, textDoc } from './store'
 
 let store: ReturnType<typeof createPositsStore>
 const S = () => store.getState()
@@ -159,5 +159,33 @@ describe('vista por tablero', () => {
     const board = S().activeBoardId
     S().setView(board, { x: 10, y: 20, z: 1.5 })
     expect(S().views[board]).toEqual({ x: 10, y: 20, z: 1.5 })
+  })
+})
+
+describe('documentos con listas', () => {
+  it('el posit de bienvenida trae una lista de pendientes con uno ya marcado', () => {
+    const welcome = Object.values(createDefaultState(1).notes)[0]
+    const lists = (welcome.doc?.content ?? []).filter((n) => n.type === 'taskList')
+    const items = lists.flatMap((l) => l.content ?? [])
+    expect(items).toHaveLength(4)
+    expect(items.filter((i) => i.attrs?.checked)).toHaveLength(1)
+  })
+
+  it('taskDoc arma título + lista con el estado de cada casilla', () => {
+    const doc = taskDoc('Compras', [
+      ['Leche', false],
+      ['Pan', true],
+    ])
+    expect(doc.content?.[0]).toMatchObject({ type: 'paragraph' })
+    const list = doc.content?.[1]
+    expect(list?.type).toBe('taskList')
+    expect(list?.content?.map((i) => i.attrs?.checked)).toEqual([false, true])
+  })
+
+  it('un posit con lista sobrevive al guardado y a la recarga', () => {
+    const store2 = createPositsStore(createDefaultState(1))
+    const id = store2.getState().addNote({ x: 900, y: 0, doc: taskDoc('Hoy', [['Llamar', true]]) })
+    const saved = JSON.stringify(store2.getState().notes[id].doc)
+    expect(JSON.parse(saved).content[1].content[0].attrs.checked).toBe(true)
   })
 })

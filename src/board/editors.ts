@@ -2,11 +2,25 @@ import type { Editor } from '@tiptap/core'
 import { store } from '../store/store'
 
 const editors = new Map<string, Editor>()
+const listeners = new Set<() => void>()
+const notify = () => listeners.forEach((cb) => cb())
+
+/** Para que la interfaz (la barra de edición) se entere cuando aparece o desaparece un editor. */
+export function subscribeEditors(cb: () => void): () => void {
+  listeners.add(cb)
+  return () => {
+    listeners.delete(cb)
+  }
+}
 
 export function registerEditor(id: string, editor: Editor): () => void {
   editors.set(id, editor)
+  notify()
   return () => {
-    if (editors.get(id) === editor) editors.delete(id)
+    if (editors.get(id) === editor) {
+      editors.delete(id)
+      notify()
+    }
   }
 }
 

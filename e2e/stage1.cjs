@@ -8,57 +8,8 @@
  * Uso:  npm run build && npm run e2e
  */
 const { chromium } = require('playwright')
-const fs = require('node:fs')
-const path = require('node:path')
 const { startPreview } = require('./serve.cjs')
-
-const OUT = path.resolve(__dirname, 'out')
-fs.mkdirSync(OUT, { recursive: true })
-
-const results = []
-const consoleErrors = []
-
-function check(name, ok, detail = '') {
-  results.push({ name, ok })
-  console.log(`${ok ? '  ✔' : '  ✘'} ${name}${ok ? '' : `  →  ${detail}`}`)
-}
-
-const near = (a, b, tol) => Math.abs(a - b) <= tol
-
-async function shot(page, name) {
-  const file = path.join(OUT, `${name}.png`)
-  await page.screenshot({ path: file })
-  console.log(`    📷 ${path.relative(process.cwd(), file)}`)
-}
-
-const getState = (page) =>
-  page.evaluate(() => {
-    const s = window.__posits.store.getState()
-    return {
-      notes: Object.values(s.notes).map((n) => ({ ...n })),
-      selectedId: s.selectedId,
-      editingId: s.editingId,
-      magnet: s.settings.magnet,
-      defaultColor: s.settings.defaultColor,
-      toast: s.toast ? s.toast.message : null,
-      saveStatus: s.saveStatus,
-      view: { ...window.__posits.view.get() },
-    }
-  })
-
-async function open(browser, url, opts) {
-  const ctx = await browser.newContext(opts)
-  const page = await ctx.newPage()
-  page.on('console', (m) => {
-    if (m.type() === 'error' || m.type() === 'warning') consoleErrors.push(`[${m.type()}] ${m.text()}`)
-  })
-  page.on('pageerror', (e) => consoleErrors.push(`[pageerror] ${e.message}`))
-  await page.goto(`${url}?debug`)
-  await page.evaluate(() => document.fonts.ready)
-  await page.waitForSelector('.world[data-ready]', { state: 'attached' })
-  await page.waitForTimeout(450) // deja terminar el fundido de entrada
-  return { ctx, page }
-}
+const { check, near, shot, getState, open, waitSaved, consoleErrors, finish } = require('./lib.cjs')
 
 /** Posits de ejemplo para las capturas (el contenido es solo para mostrar el estilo). */
 const doc = (...lines) => ({
@@ -83,10 +34,6 @@ async function seed(page) {
     window.__posits.store.getState().select(null)
   }, SAMPLES)
   await page.waitForTimeout(500)
-}
-
-async function waitSaved(page) {
-  await page.waitForFunction(() => window.__posits.store.getState().saveStatus === 'saved')
 }
 
 // ───────────────────────────── PC ─────────────────────────────
@@ -410,7 +357,20 @@ async function phone(browser, url) {
   await page.getByRole('button', { name: 'Ver todo' }).click()
   await wait(500)
   await shot(page, 'cel-03-varios')
-  const target = await page.locator('[data-note-id]').nth(4).locator('.paper').boundingBox()
+  // un posit cuyo centro esté libre (ni tapado por otros, ni por la barra de acciones que aparece al seleccionar)
+  const idx = await page.evaluate(() => {
+    const notes = [...document.querySelectorAll('.note')]
+    const i = notes.findIndex((n, k) => {
+      if (k === 0) return false
+      const r = n.getBoundingClientRect()
+      const cx = r.left + r.width / 2
+      const cy = r.top + r.height / 2
+      const top = document.elementFromPoint(cx, cy)
+      return cy > 90 && cy < innerHeight - 300 && top && top.closest('.note') === n
+    })
+    return i < 0 ? 4 : i
+  })
+  const target = await page.locator('.note').nth(idx).locator('.paper').boundingBox()
   await tap(...Object.values(centerOf(target)))
   s = await getState(page)
   check('(celular) un toque selecciona sin abrir el teclado', s.selectedId !== null && s.editingId === null)
@@ -458,9 +418,7 @@ async function phone(browser, url) {
   console.log('\n▶ Consola del navegador')
   check('sin errores ni avisos en la consola', consoleErrors.length === 0, consoleErrors.join(' | '))
 
-  const failed = results.filter((r) => !r.ok)
-  console.log(`\n${results.length - failed.length}/${results.length} comprobaciones correctas`)
-  process.exit(failed.length ? 1 : 0)
+  process.exit(finish())
 })().catch((e) => {
   console.error(e)
   process.exit(1)
