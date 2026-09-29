@@ -6,6 +6,10 @@
   position: absolute;
   left: 0;
   top: 0;
+  /* La escala del posit (--nk) crece desde su esquina de arriba a la izquierda. */
+  transform-origin: 0 0;
+  /* Los tiradores, el marco y los adornos de lo seleccionado miden lo mismo en pantalla aunque el tablero tenga zoom o el posit esté escalado. */
+  --iz: calc(1 / (var(--z, 1) * var(--nk, 1)));
   touch-action: none;
   cursor: grab;
   -webkit-user-select: none;
@@ -253,6 +257,33 @@
   right: 26%;
   height: calc(28px * var(--iz, 1));
   cursor: ns-resize;
+}
+
+/* Con ratón, los tiradores de los bordes traen una asita (solo se ven en el posit seleccionado): así se descubre que
+   cambian nada más el ancho o el alto (y el texto se acomoda), mientras la esquina agranda o achica todo el posit. */
+@media (pointer: fine) {
+  .resize-handle[data-resize='x']::after,
+  .resize-handle[data-resize='y']::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--paper-white);
+    border: calc(2.5px * var(--iz, 1)) solid var(--steel-deep);
+    border-radius: 40%;
+    box-shadow: calc(1.5px * var(--iz, 1)) calc(2px * var(--iz, 1)) 0 var(--panel-line);
+  }
+
+  .resize-handle[data-resize='x']::after {
+    width: calc(9px * var(--iz, 1));
+    height: calc(34px * var(--iz, 1));
+  }
+
+  .resize-handle[data-resize='y']::after {
+    width: calc(34px * var(--iz, 1));
+    height: calc(9px * var(--iz, 1));
+  }
 }
 
 /* En pantallas táctiles basta el tirador de la esquina. */

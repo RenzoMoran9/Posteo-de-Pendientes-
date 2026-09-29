@@ -4,7 +4,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { BASE_NOTE_SIZE, fontById } from '../lib/fonts'
 import { darken, inkFor, lighten, pickTape } from '../lib/palette'
 import { seeded } from '../lib/seed'
-import { useStore } from '../store/store'
+import { noteScale, useStore } from '../store/store'
 import { NoteEditor } from './NoteEditor'
 import { StickerView } from './StickerView'
 
@@ -33,8 +33,13 @@ export const NoteView = memo(function NoteView({ id }: { id: string }) {
   if (!note) return null
 
   const font = fontById(note.font)
+  const k = noteScale(note)
+  // Posición y escala van en las propiedades `translate` y `scale` (no en `transform`): la escala crece desde la esquina
+  // de arriba a la izquierda y el motor de gestos escribe cada una por separado mientras se arrastra o se cambia el tamaño.
   const style = {
-    transform: `translate(${note.x}px, ${note.y}px)`,
+    translate: `${note.x}px ${note.y}px`,
+    ...(k !== 1 ? { scale: String(k) } : {}),
+    '--nk': String(k),
     width: note.w,
     zIndex: note.z,
     '--note-color': note.color,

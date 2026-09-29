@@ -177,7 +177,7 @@ async function phone(browser, url) {
   await wait(150)
   const bar = page.getByRole('toolbar', { name: 'Acciones del posit' })
   let bb = await bar.boundingBox()
-  check('la barra del posit (Duplicar · Letra · Borrar) cabe en el celular', bb.x >= 0 && bb.x + bb.width <= 390 && (await bar.getByRole('button').count()) === 3, JSON.stringify(bb))
+  check('la barra del posit (Duplicar · − · + · Letra · Borrar) cabe en el celular', bb.x >= 0 && bb.x + bb.width <= 390 && (await bar.getByRole('button').count()) === 5, JSON.stringify(bb))
   await tapEl(page.getByRole('button', { name: 'Letra y estilo del texto' }))
   await pop.waitFor()
   const pb = await pop.boundingBox()

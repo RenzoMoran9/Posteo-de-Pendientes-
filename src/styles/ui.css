@@ -817,7 +817,8 @@
 
   /* Escribiendo: solo íconos (salvo «Listo»), para que quepan Listo · viñetas · pendientes · ícono · borrar. */
   .ctx.is-editing .ctx-btn:not(.is-primary) .ctx-label,
-  .ctx.is-sticker .ctx-btn .ctx-label {
+  .ctx.is-sticker .ctx-btn .ctx-label,
+  .ctx.is-note .ctx-btn .ctx-label {
     display: none;
   }
 
@@ -825,8 +826,9 @@
     padding: 0 12px;
   }
 
-  /* Seis botones (duplicar, tamaño ±, girar ↺ ↻, borrar): solo el dibujo y apretados, para que quepan en 320 px. */
-  .ctx.is-sticker .ctx-btn {
+  /* Seis botones (duplicar, tamaño ±, girar ↺ ↻, borrar) o cinco (duplicar, tamaño ±, letra, borrar): solo el dibujo y apretados, para que quepan en 320 px. */
+  .ctx.is-sticker .ctx-btn,
+  .ctx.is-note .ctx-btn {
     padding: 0 11px;
   }
 
@@ -872,7 +874,8 @@
     padding: 0 9px;
   }
 
-  .ctx.is-sticker .ctx-btn {
+  .ctx.is-sticker .ctx-btn,
+  .ctx.is-note .ctx-btn {
     padding: 0 8px;
   }
 

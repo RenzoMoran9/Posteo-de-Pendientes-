@@ -2,12 +2,12 @@ import { Check, Undo2, X } from 'lucide-react'
 import { chat, type ProposalData } from './chatStore'
 
 /**
- * Lo que Claude propone cambiar en el tablero, como un posit amarillo pegado en la conversación: qué haría, cómo
+ * Lo que el asistente propone cambiar en el tablero, como un posit amarillo pegado en la conversación: qué haría, cómo
  * quedaría y los botones «Aplicar» / «No, gracias». Ya aplicada, se puede deshacer. Nada cambia hasta pulsar «Aplicar».
  */
 export function Proposal({ msgId, p }: { msgId: string; p: ProposalData }) {
   return (
-    <div className="proposal" data-state={p.state} role="group" aria-label="Cambios que propone Claude">
+    <div className="proposal" data-state={p.state} role="group" aria-label="Cambios que propone el asistente">
       <p className="proposal-title">{p.state === 'pending' ? 'Propuesta de cambios' : p.state === 'applied' ? 'Cambios aplicados' : p.state === 'undone' ? 'Cambios deshechos' : 'Propuesta descartada'}</p>
       <ul className="proposal-list">
         {p.items.map((it, i) => (

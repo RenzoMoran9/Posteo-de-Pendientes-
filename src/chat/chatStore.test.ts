@@ -4,7 +4,7 @@ import { mascotStore } from '../mascot/mascotStore'
 import { createDefaultState, createPositsStore, taskDoc } from '../store/store'
 import type { PersistedState } from '../store/types'
 import type { PlanIO } from './actions'
-import { createChatStore, type ChatState } from './chatStore'
+import { assistantName, createChatStore, type ChatState } from './chatStore'
 import { ChatError } from './errors'
 import { itemText, listsOf } from './docOps'
 import type { AskRequest, AskResponse, Transport } from './transports/types'
@@ -45,7 +45,7 @@ interface Fake extends Transport {
   requests: AskRequest[]
 }
 
-function fake(id: 'sample' | 'api', reply: (req: AskRequest) => Promise<AskResponse> | AskResponse): Fake {
+function fake(id: Transport['id'], reply: (req: AskRequest) => Promise<AskResponse> | AskResponse): Fake {
   const requests: AskRequest[] = []
   return {
     id,
@@ -59,12 +59,14 @@ function fake(id: 'sample' | 'api', reply: (req: AskRequest) => Promise<AskRespo
 
 const ok = (text: string): AskResponse => ({ text, truncated: false })
 
-function setup(opts: { sample?: Fake; api?: Fake; sampleOk?: boolean; key?: boolean } = {}) {
+function setup(opts: { sample?: Fake; api?: Fake; gemini?: Fake; openai?: Fake; sampleOk?: boolean; key?: boolean; host?: boolean } = {}) {
   const board = createPositsStore(world())
   const sample = opts.sample ?? fake('sample', () => ok('Hola'))
   const api = opts.api ?? fake('api', () => ok('Hola desde la API'))
-  const chat = createChatStore({ board, io: boardIO(board), sample, api, detectSample: async () => opts.sampleOk ?? true, persist: false })
-  return { board, chat, sample, api, get: (): ChatState => chat.getState(), noteId: Object.keys(board.getState().notes)[0] }
+  const gemini = opts.gemini ?? fake('gemini', () => ok('Hola desde Gemini'))
+  const openai = opts.openai ?? fake('openai', () => ok('Hola desde Groq'))
+  const chat = createChatStore({ board, io: boardIO(board), sample, api, gemini, openai, detectSample: async () => opts.sampleOk ?? true, insideHost: () => opts.host ?? false, persist: false })
+  return { board, chat, sample, api, gemini, openai, get: (): ChatState => chat.getState(), noteId: Object.keys(board.getState().notes)[0] }
 }
 
 const texts = (board: ReturnType<typeof createPositsStore>, id: string): string[] => listsOf(board.getState().notes[id].doc)[0].items.map(itemText)
@@ -355,7 +357,7 @@ describe('errores y detener', () => {
     const m = t.get().messages[1]
     expect(m.text).toBe('Te cuento que…')
     expect(m.streaming).toBe(false)
-    expect(m.note).toEqual({ tone: 'error', text: expect.stringContaining('demasiadas peticiones') })
+    expect(m.note).toEqual({ tone: 'error', text: expect.stringContaining('límite de uso') })
     expect(t.get().status).toBe('idle')
     expect(mascotStore.getState().talking).toBe(false)
   })
@@ -419,3 +421,229 @@ describe('ajustes', () => {
     expect(t.get().view).toBe('chat')
   })
 })
+
+describe('IA gratuita: Gemini, Groq y otras', () => {
+  const KEY_G = 'AIzaSyEjemplo-0123456789abcdefghijklmnopq'
+
+  it('sin cuenta ni claves, contesta el modo sencillo; Gemini es el servicio que se ofrece por defecto', async () => {
+    const t = setup({ sampleOk: false })
+    await t.get().detect()
+    expect(t.get().via).toBe('local')
+    expect(t.get().provider).toBe('gemini')
+    expect(t.get().keys).toEqual({ claude: false, gemini: false, groq: false, custom: false })
+  })
+
+  it('al guardar la clave de Gemini, se queda con Gemini y contesta con él (con su modelo recomendado)', async () => {
+    const t = setup({ sampleOk: false })
+    await t.get().detect()
+    t.get().saveProviderKey('gemini', `  ${KEY_G} `)
+    expect(t.get().keys.gemini).toBe(true)
+    expect(t.get().settings.provider).toBe('gemini')
+    expect(t.get().via).toBe('gemini')
+    await t.get().send('¿Qué hago primero?')
+    expect(t.gemini.requests).toHaveLength(1)
+    expect(t.gemini.requests[0].model).toBe('gemini-3.8-flash')
+    expect(t.sample.requests).toHaveLength(0)
+    expect(t.api.requests).toHaveLength(0)
+    const a = t.get().messages[1]
+    expect(a).toMatchObject({ role: 'assistant', text: 'Hola desde Gemini', via: 'gemini', streaming: false })
+  })
+
+  it('no se hace pasar por Claude: las instrucciones dicen con qué modelo funciona', async () => {
+    const t = setup({ sampleOk: false })
+    await t.get().detect()
+    t.get().saveProviderKey('gemini', KEY_G)
+    await t.get().send('Hola')
+    const sys = t.gemini.requests[0].system
+    expect(sys).toContain('funcionas con Gemini, modelo gemini-3.8-flash')
+    expect(sys).not.toContain('Eres Claude')
+    expect(sys).toContain('ayudar con SUS pendientes')
+    // y a Claude sí se le dice que es Claude
+    const c = setup({ sampleOk: true })
+    await c.get().detect()
+    await c.get().send('Hola')
+    expect(c.sample.requests[0].system).toContain('Eres Claude')
+  })
+
+  it('el modelo elegido se usa en el siguiente mensaje, y vaciarlo devuelve el recomendado', async () => {
+    const t = setup({ sampleOk: false })
+    await t.get().detect()
+    t.get().saveProviderKey('gemini', KEY_G)
+    t.get().setModel('gemini', ' gemini-2.5-flash ')
+    expect(t.get().settings.models.gemini).toBe('gemini-2.5-flash')
+    await t.get().send('uno')
+    expect(t.gemini.requests[0].model).toBe('gemini-2.5-flash')
+    t.get().setModel('gemini', '   ')
+    expect(t.get().settings.models.gemini).toBeUndefined()
+    await t.get().send('dos')
+    expect(t.gemini.requests[1].model).toBe('gemini-3.8-flash')
+  })
+
+  it('Groq usa la conexión «compatible con OpenAI» y su modelo recomendado', async () => {
+    const t = setup({ sampleOk: false })
+    await t.get().detect()
+    t.get().saveProviderKey('groq', 'gsk_0123456789abcdefghijklmnop')
+    expect(t.get().via).toBe('openai')
+    expect(t.get().provider).toBe('groq')
+    await t.get().send('Hola')
+    expect(t.openai.requests[0].model).toBe('llama-3.3-70b-versatile')
+    expect(t.openai.requests[0].system).toContain('funcionas con Groq')
+    expect(t.get().messages[1]).toMatchObject({ text: 'Hola desde Groq', via: 'openai' })
+  })
+
+  it('«otra IA»: hace falta clave, dirección válida y modelo; con todo, contesta', async () => {
+    const t = setup({ sampleOk: false })
+    await t.get().detect()
+    t.get().saveProviderKey('custom', 'sk-or-v1-loquesea')
+    expect(t.get().via).toBe('local') // falta la dirección y el modelo
+    t.get().setCustomBase('http://ejemplo.com/v1')
+    t.get().setModel('custom', 'openrouter/free')
+    expect(t.get().via).toBe('local') // http sin https
+    t.get().setCustomBase('openrouter.ai/api/v1')
+    expect(t.get().via).toBe('openai')
+    await t.get().send('Hola')
+    expect(t.openai.requests[0].model).toBe('openrouter/free')
+  })
+
+  it('elegir un servicio sin clave deja el modo sencillo (aunque otro tenga clave), y volver a elegir el que la tiene lo reactiva', async () => {
+    const t = setup({ sampleOk: false })
+    await t.get().detect()
+    t.get().saveProviderKey('gemini', KEY_G)
+    t.get().setProvider('groq')
+    expect(t.get().via).toBe('local')
+    t.get().setProvider('gemini')
+    expect(t.get().via).toBe('gemini')
+  })
+
+  it('quien ya usaba su clave de Claude sigue con ella; y si luego agrega una gratuita, se pasa a esa', async () => {
+    const t = setup({ sampleOk: false })
+    await t.get().detect()
+    t.get().saveApiKey('sk-ant-api03-0123456789abcdefghij')
+    expect(t.get().via).toBe('api')
+    expect(t.get().hasKey).toBe(true)
+    t.get().saveProviderKey('gemini', KEY_G)
+    expect(t.get().via).toBe('gemini')
+    t.get().setProvider('claude')
+    expect(t.get().via).toBe('api')
+    t.get().forgetApiKey()
+    expect(t.get().hasKey).toBe(false)
+    expect(t.get().via).toBe('local')
+  })
+
+  it('dentro del enlace de prueba de claude.ai solo vale la cuenta de Claude: las claves gratuitas no se usan', async () => {
+    const t = setup({ sampleOk: false, host: true })
+    await t.get().detect()
+    t.get().saveProviderKey('gemini', KEY_G)
+    expect(t.get().via).toBe('local')
+    const ok = setup({ sampleOk: true, host: true })
+    await ok.get().detect()
+    ok.get().saveProviderKey('gemini', KEY_G)
+    expect(ok.get().via).toBe('sample')
+  })
+
+  it('olvidar una clave la borra y vuelve al modo sencillo', async () => {
+    const t = setup({ sampleOk: false })
+    await t.get().detect()
+    t.get().saveProviderKey('gemini', KEY_G)
+    t.get().forgetProviderKey('gemini')
+    expect(t.get().keys.gemini).toBe(false)
+    expect(t.get().via).toBe('local')
+  })
+
+  it('un error del servicio se explica en el mensaje; si trae su propio texto (con lo que dijo el servicio), se muestra ese', async () => {
+    const t = setup({
+      sampleOk: false,
+      gemini: fake('gemini', () => {
+        throw new ChatError('rate_limit')
+      }),
+    })
+    await t.get().detect()
+    t.get().saveProviderKey('gemini', KEY_G)
+    await t.get().send('Hola')
+    expect(t.get().messages[1].note).toMatchObject({ tone: 'error', text: expect.stringContaining('límite de uso') })
+    const u = setup({
+      sampleOk: false,
+      gemini: fake('gemini', () => {
+        throw new ChatError('unknown', 'Algo salió mal (Google dijo: cuota).')
+      }),
+    })
+    await u.get().detect()
+    u.get().saveProviderKey('gemini', KEY_G)
+    await u.get().send('Hola')
+    expect(u.get().messages[1].note?.text).toBe('Algo salió mal (Google dijo: cuota).')
+  })
+
+  it('un cambio en los ajustes borra el resultado de la última prueba', async () => {
+    const t = setup({ sampleOk: false })
+    await t.get().detect()
+    t.get().saveProviderKey('gemini', KEY_G)
+    await t.get().testConnection()
+    expect(t.get().test.status).toBe('ok')
+    t.get().setModel('gemini', 'gemini-2.5-flash')
+    expect(t.get().test).toEqual({ status: 'idle', message: '' })
+  })
+})
+
+describe('probar la conexión', () => {
+  const KEY_G = 'AIzaSyEjemplo-0123456789abcdefghijklmnopq'
+
+  it('manda un mensajito mínimo (sin el tablero) y dice qué modelo contestó', async () => {
+    const t = setup({ sampleOk: false, gemini: fake('gemini', () => ok('ok')) })
+    await t.get().detect()
+    t.get().saveProviderKey('gemini', KEY_G)
+    await t.get().testConnection()
+    expect(t.get().test.status).toBe('ok')
+    expect(t.get().test.message).toContain('Gemini (gemini-3.8-flash)')
+    const req = t.gemini.requests[0]
+    expect(req.turns).toEqual([{ role: 'user', content: 'Hola' }])
+    expect(req.system).toContain('Responde solo con la palabra')
+    expect(t.get().messages).toHaveLength(0) // no ensucia la conversación
+  })
+
+  it('si falla, explica por qué (clave mala, sin conexión…)', async () => {
+    const t = setup({
+      sampleOk: false,
+      gemini: fake('gemini', () => {
+        throw new ChatError('auth')
+      }),
+    })
+    await t.get().detect()
+    t.get().saveProviderKey('gemini', KEY_G)
+    await t.get().testConnection()
+    expect(t.get().test).toEqual({ status: 'error', message: expect.stringContaining('La clave no es válida') })
+  })
+
+  it('sin clave guardada, pide pegarla primero (y no llama a nadie)', async () => {
+    const t = setup({ sampleOk: false })
+    await t.get().detect()
+    await t.get().testConnection()
+    expect(t.get().test).toEqual({ status: 'error', message: 'Primero pega la clave y guárdala.' })
+    expect(t.gemini.requests).toHaveLength(0)
+  })
+
+  it('no permite dos pruebas a la vez', async () => {
+    let release: (r: AskResponse) => void = () => {}
+    const slow = fake('gemini', () => new Promise<AskResponse>((r) => (release = r)))
+    const t = setup({ sampleOk: false, gemini: slow })
+    await t.get().detect()
+    t.get().saveProviderKey('gemini', KEY_G)
+    const first = t.get().testConnection()
+    expect(t.get().test.status).toBe('running')
+    await t.get().testConnection()
+    release(ok('ok'))
+    await first
+    expect(slow.requests).toHaveLength(1)
+  })
+})
+
+describe('assistantName', () => {
+  it('Claude cuando contesta Claude, el nombre del servicio cuando es otro, y «Asistente» en modo sencillo', () => {
+    expect(assistantName('sample', 'gemini')).toBe('Claude')
+    expect(assistantName('api', 'claude')).toBe('Claude')
+    expect(assistantName('gemini', 'gemini')).toBe('Gemini')
+    expect(assistantName('openai', 'groq')).toBe('Groq')
+    expect(assistantName('openai', 'custom')).toBe('Otra IA')
+    expect(assistantName('local', 'gemini')).toBe('Asistente')
+  })
+})
+

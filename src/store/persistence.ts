@@ -58,6 +58,7 @@ export function parsePersisted(raw: string | null): PersistedState | null {
     if (!boards[boardId]) continue
     const z = num(n.z, 1)
     maxZ = Math.max(maxZ, z)
+    const scale = Math.min(4, Math.max(0.3, num(n.scale, 1)))
     notes[id] = {
       id,
       boardId,
@@ -65,6 +66,8 @@ export function parsePersisted(raw: string | null): PersistedState | null {
       y: num(n.y, 0),
       w: num(n.w, 240),
       h: num(n.h, 216),
+      // la escala 1 es la de siempre: no se anota
+      ...(scale !== 1 ? { scale } : {}),
       z,
       color: str(n.color, DEFAULT_COLOR),
       ...(typeof n.font === 'string' && n.font ? { font: n.font } : {}),

@@ -1,6 +1,6 @@
 import type { JSONContent } from '@tiptap/core'
 import { boundsOf, findFreeSpot, fitView, rotatedSquare, stepAngle, type Rect } from '../lib/geometry'
-import { NOTE_DEFAULTS, STICKER_DEFAULTS, stickersOfNote, store } from '../store/store'
+import { NOTE_DEFAULTS, STICKER_DEFAULTS, noteScale, stickersOfNote, store } from '../store/store'
 import { insertIconInNote } from './editors'
 import { kbdProxy } from './kbd'
 import { view } from './view'
@@ -55,6 +55,59 @@ export function addNoteWithContent(doc: JSONContent, color?: string): string {
   return id
 }
 
+let revealTimer: ReturnType<typeof setTimeout> | undefined
+let revealOff: (() => void) | undefined
+
+/** Anula un «traer a la vista» que estuviera esperando: lo que haga la persona con el dedo o el ratón manda. */
+export function cancelReveal(): void {
+  if (revealTimer) clearTimeout(revealTimer)
+  revealTimer = undefined
+  revealOff?.()
+  revealOff = undefined
+}
+
+/** Lo que ocupa en pantalla la mascota (o su mascotita, si está escondida), si se ve. */
+function mascotBox(): DOMRect | null {
+  const r = document.querySelector<HTMLElement>('.mascot-figure, .mascot-peek')?.getBoundingClientRect()
+  return r && r.width > 0 && r.height > 0 ? r : null
+}
+
+/** Lo más que se aleja el zoom para traer un posit entero a la vista (más allá, se deja el zoom como está). */
+const REVEAL_MIN_ZOOM = 0.75
+
+/**
+ * Al elegir un posit, lo trae a la vista completo (con el tirador de la esquina, que sobresale) por encima de las barras
+ * y de la mascota: la barra de acciones aparece justo con la selección y, si el posit quedaba abajo, tapaba el tirador
+ * y no se podía agarrar. Espera un momento a que la barra aparezca y la mascota dé su saltito para saber cuánto tapan,
+ * y cualquier toque o clic que la persona haga mientras tanto lo cancela.
+ */
+export function revealNote(id: string): void {
+  cancelReveal()
+  const off = () => cancelReveal()
+  document.addEventListener('pointerdown', off, { capture: true, once: true })
+  revealOff = () => document.removeEventListener('pointerdown', off, true)
+  revealTimer = setTimeout(() => {
+    revealTimer = undefined
+    revealOff?.()
+    revealOff = undefined
+    const el = document.querySelector<HTMLElement>(`[data-note-id="${id}"]`)
+    if (!el || store.getState().selectedId !== id) return
+    const z = view.get().z
+    const r = el.getBoundingClientRect()
+    const at = view.screenToBoard(r.left, r.top)
+    const reach = 32 // el tirador de la esquina sobresale del posit (en píxeles de pantalla)
+    const rect = { x: at.x, y: at.y, w: (r.width + reach) / z, h: (r.height + reach) / z }
+    // La mascota también puede quedar sobre el tirador: si la esquina cae a su lado, se sube un poco más.
+    const m = mascotBox()
+    const board = view.rect()
+    const overMascot = m !== null && r.right + reach > m.left && r.right - reach < m.right
+    const bottom = overMascot ? Math.max(view.insets().bottom, board.height - (m.top - board.top) + 6) : undefined
+    // si el posit no cabe entero, se aleja un poco el zoom para verlo completo y poder alcanzar su esquina
+    view.ensureVisible(rect, true, bottom === undefined ? undefined : { bottom }, REVEAL_MIN_ZOOM)
+    persistViewSoon()
+  }, 380)
+}
+
 /** Doble clic en el fondo: el posit nace justo donde se hizo clic. */
 export function addNoteAtClient(cx: number, cy: number): void {
   kbdProxy.prime()
@@ -62,16 +115,17 @@ export function addNoteAtClient(cx: number, cy: number): void {
   store.getState().addNote({ x: p.x - NOTE_DEFAULTS.w / 2, y: p.y - NOTE_DEFAULTS.h / 2, edit: true, exact: true })
 }
 
-/** Rectángulos reales de los posits (el alto real puede ser mayor que el guardado si el texto crece). */
+/** Rectángulos reales de los posits, como se ven (con su escala; el alto real puede ser mayor que el guardado si el texto crece). */
 function measuredRects(): Rect[] {
   const s = store.getState()
   const z = view.get().z
   return Object.values(s.notes)
     .filter((n) => n.boardId === s.activeBoardId)
     .map((n) => {
+      const k = noteScale(n)
       const el = document.querySelector<HTMLElement>(`[data-note-id="${n.id}"]`)
-      const realH = el ? el.getBoundingClientRect().height / z : n.h
-      return { x: n.x, y: n.y, w: n.w, h: Math.max(n.h, realH) }
+      const realH = el ? el.getBoundingClientRect().height / z : n.h * k
+      return { x: n.x, y: n.y, w: n.w * k, h: Math.max(n.h * k, realH) }
     })
 }
 
@@ -119,7 +173,8 @@ export function addStickerFromPanel(icon: string): string {
   if (note) {
     const { x, y } = cornerSlot(note.w, stickersOfNote(s, note.id).length, size)
     const id = s.addSticker({ icon, noteId: note.id, x, y, size })
-    view.ensureVisible({ x: note.x + x, y: note.y + y, w: size, h: size })
+    const k = noteScale(note)
+    view.ensureVisible({ x: note.x + x * k, y: note.y + y * k, w: size * k, h: size * k })
     persistViewSoon()
     return id
   }
@@ -150,7 +205,8 @@ function allStickerRects(): Rect[] {
     .flatMap((st) => {
       const parent = st.noteId ? s.notes[st.noteId] : undefined
       if (st.noteId && !parent) return []
-      return [rotatedSquare((parent ? parent.x : 0) + st.x, (parent ? parent.y : 0) + st.y, st.size, st.tilt)]
+      const k = parent ? noteScale(parent) : 1
+      return [rotatedSquare((parent ? parent.x : 0) + st.x * k, (parent ? parent.y : 0) + st.y * k, st.size * k, st.tilt)]
     })
 }
 

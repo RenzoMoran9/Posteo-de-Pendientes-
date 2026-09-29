@@ -4,24 +4,33 @@ import { store as boardStore, type Store } from '../store/store'
 import { uid } from '../lib/uid'
 import { applyPlan, planActions, type Applied, type PlanIO, type PlanItem } from './actions'
 import { buildSnapshot, type SnapNotes } from './context'
-import { ChatError, explain } from './errors'
+import { ChatError } from './errors'
 import { storeIO } from './io'
 import { localReply } from './local'
-import { buildSystem, buildTurns, type HistoryMsg, type ProposalState } from './prompt'
+import { buildSystem, buildTurns, type HistoryMsg, type Persona, type ProposalState } from './prompt'
 import { parseBlocks, splitReply, visibleWhileStreaming } from './protocol'
-import { DEFAULT_SETTINGS, clearKey, loadKey, loadSettings, saveKey, saveSettings, type ClaudeSettings } from './settings'
+import { PROVIDERS, baseLooksValid, normalizeBase, providerById, type ProviderId } from './providers'
+import { DEFAULT_SETTINGS, clearKey, effectiveProvider, loadAllKeys, loadKey, loadSettings, modelById, modelFor, saveKey, saveSettings, type ClaudeSettings } from './settings'
 import { makeApiTransport } from './transports/api'
+import { makeGeminiTransport } from './transports/gemini'
+import { makeOpenAITransport } from './transports/openai'
 import { findSample, insideClaudeHost, sampleTransport } from './transports/sample'
 import type { Transport } from './transports/types'
 import { speak, stopSpeaking } from './voice'
 
 /**
- * La conversación con Claude: los mensajes, el envío (por la cuenta de Claude del enlace de prueba, con la clave propia
- * o, si no hay ninguna, con las respuestas sencillas de local.ts), la respuesta que va llegando y las propuestas de
- * cambios con «Aplicar» y «Deshacer». La conversación se guarda en este dispositivo.
+ * La conversación con la IA: los mensajes, el envío (por la cuenta de Claude del enlace de prueba, con la clave de Claude,
+ * de Gemini, de Groq o de otro servicio, o, si no hay ninguna, con las respuestas sencillas de local.ts), la respuesta que
+ * va llegando y las propuestas de cambios con «Aplicar» y «Deshacer». La conversación se guarda en este dispositivo.
  */
 
-export type Via = 'sample' | 'api' | 'local'
+/** Con qué conexión se contesta: la cuenta de Claude del enlace de prueba, la clave de Claude, Gemini, un servicio compatible con OpenAI (Groq…) o las respuestas sencillas. */
+export type Via = 'sample' | 'api' | 'gemini' | 'openai' | 'local'
+
+export interface ConnectionTest {
+  status: 'idle' | 'running' | 'ok' | 'error'
+  message: string
+}
 
 export interface ProposalData {
   /** Las acciones tal como llegaron (se vuelven a revisar contra el tablero al aplicarlas). */
@@ -55,7 +64,14 @@ export interface ChatState {
   messages: ChatMessage[]
   status: ChatStatus
   settings: ClaudeSettings
+  /** ¿Hay clave guardada de Claude (Anthropic)? Es `keys.claude`. */
   hasKey: boolean
+  /** Qué claves hay guardadas, servicio por servicio. */
+  keys: Record<ProviderId, boolean>
+  /** Quién contesta cuando no se usa la cuenta del enlace de prueba (lo elegido, o el que ya tiene clave). */
+  provider: ProviderId
+  /** El resultado del último «Probar conexión». */
+  test: ConnectionTest
   /** ¿Se puede usar la cuenta de Claude del enlace de prueba? `null` = aún se averigua. */
   sampleOk: boolean | null
   /** La página corre dentro de un visor de Claude (enlace de prueba): la clave propia no puede funcionar ahí. */
@@ -78,6 +94,15 @@ export interface ChatState {
   dismiss(id: string): void
   undo(id: string): void
   patchSettings(p: Partial<ClaudeSettings>): void
+  /** Elige quién contesta (Gemini, Groq, otra IA o Claude). */
+  setProvider(p: ProviderId): void
+  /** Elige el modelo de un servicio que no es Claude (para Claude, `patchSettings({ model })`). */
+  setModel(p: ProviderId, model: string): void
+  setCustomBase(url: string): void
+  saveProviderKey(p: ProviderId, key: string): void
+  forgetProviderKey(p: ProviderId): void
+  /** Manda un mensajito de prueba para saber si la clave, el modelo y la conexión funcionan. */
+  testConnection(): Promise<void>
   saveApiKey(key: string): void
   forgetApiKey(): void
   /** Vuelve a averiguar si hay cuenta de Claude disponible. */
@@ -92,13 +117,33 @@ export interface ChatDeps {
   io: PlanIO
   sample: Transport
   api: Transport
+  gemini: Transport
+  openai: Transport
   detectSample: () => Promise<boolean>
   insideHost: () => boolean
   /** Guardar y leer en este dispositivo (se apaga en las pruebas). */
   persist: boolean
 }
 
-const viaOf = (sampleOk: boolean | null, hasKey: boolean): Via => (sampleOk ? 'sample' : hasKey ? 'api' : 'local')
+/**
+ * Con cuál conexión se contesta: la cuenta de Claude del enlace de prueba si se puede; dentro de ese visor no hay otra
+ * (el navegador no deja salir a otros sitios); fuera, el servicio elegido si tiene clave; y si no, las respuestas sencillas.
+ */
+function viaOf(sampleOk: boolean | null, keys: Record<ProviderId, boolean>, settings: ClaudeSettings, host: boolean): Via {
+  if (sampleOk) return 'sample'
+  if (host) return 'local'
+  const p = effectiveProvider(settings, keys)
+  if (!keys[p]) return 'local'
+  if (p === 'custom') return baseLooksValid(settings.customBase) && !!modelFor(settings, 'custom') ? 'openai' : 'local'
+  return p === 'claude' ? 'api' : p === 'gemini' ? 'gemini' : 'openai'
+}
+
+/** El nombre con el que se le habla a quien contesta en cada conexión (para el encabezado y los avisos). */
+export function assistantName(via: Via, provider: ProviderId): string {
+  if (via === 'sample' || via === 'api') return 'Claude'
+  if (via === 'gemini' || via === 'openai') return providerById(provider).short
+  return 'Asistente'
+}
 
 const toHistory = (list: ChatMessage[]): HistoryMsg[] =>
   list
@@ -141,11 +186,25 @@ const later = (fn: () => void): void => {
 }
 
 export function createChatStore(deps: Partial<ChatDeps> = {}) {
+  // los servicios que se llaman con clave leen lo elegido en cada mensaje: así un cambio en los ajustes vale de inmediato
+  let read: () => ChatState = () => {
+    throw new Error('el almacén de la conversación aún no está listo')
+  }
   const d: ChatDeps = {
     board: boardStore,
     io: storeIO,
     sample: sampleTransport,
-    api: makeApiTransport({ getKey: loadKey }),
+    api: makeApiTransport({ getKey: () => loadKey('claude') }),
+    gemini: makeGeminiTransport({ getKey: () => loadKey('gemini') }),
+    openai: makeOpenAITransport({
+      getConfig: () => {
+        const st = read()
+        const p = st.provider
+        const key = loadKey(p)
+        const baseURL = p === 'groq' ? (PROVIDERS.groq.baseURL ?? '') : normalizeBase(st.settings.customBase)
+        return key && baseURL ? { baseURL, key, model: modelFor(st.settings, p) } : null
+      },
+    }),
     detectSample: async () => !!(await findSample()),
     insideHost: insideClaudeHost,
     persist: true,
@@ -158,6 +217,7 @@ export function createChatStore(deps: Partial<ChatDeps> = {}) {
   const mascot = () => mascotStore.getState()
 
   return createStore<ChatState>()((set, get) => {
+    read = get
     const patchMessage = (id: string, fn: (m: ChatMessage) => ChatMessage): void =>
       set((s) => ({ messages: s.messages.map((m) => (m.id === id ? fn(m) : m)) }))
 
@@ -165,9 +225,33 @@ export function createChatStore(deps: Partial<ChatDeps> = {}) {
       patchMessage(id, (m) => (m.proposal ? { ...m, proposal: { ...m.proposal, ...p } } : m))
 
     const host = d.insideHost()
-    const recomputeVia = (): Via => viaOf(get().sampleOk && !sampleBlocked, get().hasKey && !host)
+    const idleTest: ConnectionTest = { status: 'idle', message: '' }
+    const recomputeVia = (): Via => viaOf(get().sampleOk && !sampleBlocked, get().keys, get().settings, host)
 
-    /** Termina un mensaje de Claude: quita el «escribiendo», separa el texto de las acciones y arma la propuesta. */
+    /** Vuelve a calcular lo que depende de los ajustes y las claves (quién contesta y con qué conexión) y borra el resultado de la última prueba. */
+    const sync = (extra: Partial<ChatState> = {}): void => {
+      const s = get()
+      const keys = extra.keys ?? s.keys
+      const settings = extra.settings ?? s.settings
+      set({
+        ...extra,
+        hasKey: keys.claude,
+        provider: effectiveProvider(settings, keys),
+        via: viaOf(s.sampleOk && !sampleBlocked, keys, settings, host),
+        test: idleTest,
+      })
+    }
+
+    /** La conexión que corresponde a cada vía, el modelo que se le pide y cómo se presenta quien contesta. */
+    const plan = (v: Via): { transport: Transport; model: string; persona: Persona } => {
+      const st = get()
+      const info = providerById(st.provider)
+      if (v === 'sample' || v === 'api') return { transport: v === 'sample' ? d.sample : d.api, model: st.settings.model, persona: { kind: 'claude' } }
+      const model = modelFor(st.settings, st.provider)
+      return { transport: v === 'gemini' ? d.gemini : d.openai, model, persona: { kind: 'other', engine: `${info.short}, modelo ${model}` } }
+    }
+
+    /** Termina un mensaje de la IA: quita el «escribiendo», separa el texto de las acciones y arma la propuesta. */
     function finish(id: string, fullText: string, via: Via, opts: { truncated?: boolean; snap: SnapNotes; extra?: unknown[]; info?: string }): string {
       const reply = splitReply(fullText)
       const parsed = parseBlocks(reply.blocks)
@@ -212,8 +296,6 @@ export function createChatStore(deps: Partial<ChatDeps> = {}) {
 
       const board = d.board.getState()
       const snap = buildSnapshot(board, { share: s0.settings.shareNotes, selectedId: board.selectedId })
-      const system = buildSystem()
-      const turns = buildTurns(history, text, snap.text)
       const ctl = new AbortController()
       controller = ctl
 
@@ -248,8 +330,10 @@ export function createChatStore(deps: Partial<ChatDeps> = {}) {
             localActions = r.actions
             break
           }
+          const p = plan(via)
+          const turns = buildTurns(history, text, snap.text)
           try {
-            done = await (via === 'sample' ? d.sample : d.api).ask({ system, turns, model: get().settings.model, signal: ctl.signal, onText })
+            done = await p.transport.ask({ system: buildSystem(p.persona), turns, model: p.model, signal: ctl.signal, onText })
           } catch (e) {
             // sin permiso en esa conexión: se pasa a la siguiente (la clave propia o las respuestas sencillas)
             if (e instanceof ChatError && e.code === 'no_access' && via === 'sample') {
@@ -282,7 +366,7 @@ export function createChatStore(deps: Partial<ChatDeps> = {}) {
           text: partial,
           via,
           streaming: false,
-          note: err.code === 'cancelled' ? { tone: 'info', text: partial ? 'Detenido.' : 'Detenido antes de que empezara a contestar.' } : { tone: 'error', text: explain(err.code) },
+          note: err.code === 'cancelled' ? { tone: 'info', text: partial ? 'Detenido.' : 'Detenido antes de que empezara a contestar.' } : { tone: 'error', text: err.message },
         }))
         mascot().setTalking(false)
         mascot().feel('idle')
@@ -301,12 +385,19 @@ export function createChatStore(deps: Partial<ChatDeps> = {}) {
       } catch {
         ok = false
       }
-      set((s) => ({ sampleOk: ok, via: viaOf(ok && !sampleBlocked, s.hasKey && !host) }))
+      set({ sampleOk: ok })
+      sync()
     }
 
     const settings = d.persist ? loadSettings() : { ...DEFAULT_SETTINGS }
-    const hasKey = d.persist ? !!loadKey() : false
+    const keys = d.persist ? loadAllKeys() : { claude: false, gemini: false, groq: false, custom: false }
     queueMicrotask(() => void detect())
+
+    /** Guarda los ajustes en el aparato y recalcula lo que dependa de ellos. */
+    const updateSettings = (next: ClaudeSettings): void => {
+      if (d.persist) saveSettings(next)
+      sync({ settings: next })
+    }
 
     return {
       open: false,
@@ -314,11 +405,14 @@ export function createChatStore(deps: Partial<ChatDeps> = {}) {
       messages: d.persist ? loadMessages() : [],
       status: 'idle',
       settings,
-      hasKey,
+      hasKey: keys.claude,
+      keys,
+      provider: effectiveProvider(settings, keys),
+      test: idleTest,
       draft: '',
       sampleOk: null,
       host,
-      via: viaOf(null, hasKey && !host),
+      via: viaOf(null, keys, settings, host),
 
       setOpen(open) {
         if (get().open === open) return
@@ -391,27 +485,79 @@ export function createChatStore(deps: Partial<ChatDeps> = {}) {
       },
 
       patchSettings(p) {
-        const next = { ...get().settings, ...p }
-        set({ settings: next })
-        if (d.persist) saveSettings(next)
+        updateSettings({ ...get().settings, ...p })
         if (p.speak === false) stopSpeaking()
-        if (p.remember !== undefined && get().hasKey) {
-          const k = loadKey()
-          if (k) saveKey(k, p.remember)
+        if (p.remember !== undefined && d.persist) {
+          // la clave de cada servicio se guarda en este aparato o solo en esta pestaña, según lo elegido
+          for (const id of Object.keys(get().keys) as ProviderId[]) {
+            const k = get().keys[id] ? loadKey(id) : null
+            if (k) saveKey(k, p.remember, id)
+          }
+        }
+      },
+
+      setProvider(p) {
+        sampleBlocked = false
+        updateSettings({ ...get().settings, provider: p })
+      },
+
+      setModel(p, model) {
+        const m = model.trim()
+        const models = { ...get().settings.models }
+        if (m) models[p] = m
+        else delete models[p]
+        updateSettings({ ...get().settings, models })
+      },
+
+      setCustomBase(url) {
+        updateSettings({ ...get().settings, customBase: url.trim() })
+      },
+
+      saveProviderKey(p, key) {
+        const k = key.trim()
+        if (!k) return
+        sampleBlocked = false
+        if (d.persist) saveKey(k, get().settings.remember, p)
+        const next = { ...get().settings, provider: p }
+        if (d.persist) saveSettings(next)
+        sync({ keys: { ...get().keys, [p]: true }, settings: next })
+      },
+
+      forgetProviderKey(p) {
+        if (d.persist) clearKey(p)
+        sync({ keys: { ...get().keys, [p]: false } })
+      },
+
+      async testConnection() {
+        const s = get()
+        if (s.test.status === 'running') return
+        const v = s.via
+        if (v === 'local' || v === 'sample') {
+          set({ test: { status: 'error', message: 'Primero pega la clave y guárdala.' } })
+          return
+        }
+        const p = plan(v)
+        const ctl = new AbortController()
+        const timer = setTimeout(() => ctl.abort(), 45_000)
+        set({ test: { status: 'running', message: '' } })
+        try {
+          await p.transport.ask({ system: 'Responde solo con la palabra «ok».', turns: [{ role: 'user', content: 'Hola' }], model: p.model, signal: ctl.signal, onText: () => {} })
+          const who = v === 'api' ? modelById(p.model).name : `${providerById(get().provider).short} (${p.model})`
+          set({ test: { status: 'ok', message: `¡Funciona! Contestó ${who}.` } })
+        } catch (e) {
+          const err = e instanceof ChatError ? e : new ChatError('unknown')
+          set({ test: { status: 'error', message: err.code === 'cancelled' ? 'Tardó demasiado en contestar. Vuelve a intentarlo.' : err.message } })
+        } finally {
+          clearTimeout(timer)
         }
       },
 
       saveApiKey(key) {
-        const k = key.trim()
-        if (!k) return
-        sampleBlocked = false
-        if (d.persist) saveKey(k, get().settings.remember)
-        set({ hasKey: true, via: viaOf(get().sampleOk, !host) })
+        get().saveProviderKey('claude', key)
       },
 
       forgetApiKey() {
-        if (d.persist) clearKey()
-        set({ hasKey: false, via: viaOf(get().sampleOk && !sampleBlocked, false) })
+        get().forgetProviderKey('claude')
       },
 
       detect,

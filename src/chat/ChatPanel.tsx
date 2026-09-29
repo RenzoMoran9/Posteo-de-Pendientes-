@@ -3,22 +3,23 @@ import type { KeyboardEvent } from 'react'
 import { Mic, Settings, SendHorizontal, Square, X } from 'lucide-react'
 import { useCoarsePointer } from '../hooks/useCoarsePointer'
 import { ClawdPeek } from '../mascot/ClawdArt'
-import { chat, useChat, type ChatMessage } from './chatStore'
+import { assistantName, chat, useChat, type ChatMessage } from './chatStore'
 import { ChatSettings } from './ChatSettings'
 import { Proposal } from './Proposal'
-import { modelById } from './settings'
+import { PROVIDERS } from './providers'
+import { modelById, modelFor } from './settings'
 import { canListen, listen, type Listening } from './voice'
 
 const SUGGESTIONS = ['¿Qué debería hacer primero?', 'Ordena mis pendientes', 'Resume mi tablero', 'Arma un plan para hoy']
 
-function Message({ m }: { m: ChatMessage }) {
+function Message({ m, name }: { m: ChatMessage; name: string }) {
   const bot = m.role === 'assistant'
   return (
     <div className={bot ? 'msg msg-bot' : 'msg msg-user'} data-role={m.role}>
       {bot ? (
         <div className="msg-bubble">
           {m.streaming && !m.text ? (
-            <span className="msg-dots" role="status" aria-label="Claude está pensando">
+            <span className="msg-dots" role="status" aria-label={`${name} está pensando`}>
               <i />
               <i />
               <i />
@@ -29,7 +30,7 @@ function Message({ m }: { m: ChatMessage }) {
               {m.streaming && <span className="msg-caret" aria-hidden="true" />}
             </p>
           )}
-          {m.via === 'local' && !m.streaming && <span className="msg-tag">respuesta sencilla, sin Claude</span>}
+          {m.via === 'local' && !m.streaming && <span className="msg-tag">respuesta sencilla, sin IA</span>}
         </div>
       ) : (
         <div className="msg-bubble">
@@ -46,15 +47,17 @@ function Message({ m }: { m: ChatMessage }) {
   )
 }
 
-function Welcome({ onPick }: { onPick: (t: string) => void }) {
+function Welcome({ onPick, name }: { onPick: (t: string) => void; name: string }) {
   const via = useChat((s) => s.via)
+  const host = useChat((s) => s.host)
   return (
     <div className="chat-welcome">
-      <p className="chat-welcome-title">Hola, soy Claude.</p>
+      <p className="chat-welcome-title">{name === 'Claude' ? 'Hola, soy Claude.' : 'Hola, soy tu asistente.'}</p>
       <p>Puedo ayudarte con tus pendientes: decidir qué hacer primero, ordenarlos, numerarlos o armar un plan. También puedes hablarme por voz.</p>
       {via === 'local' && (
         <p className="chat-callout">
-          Ahora estoy <b>sin conexión a Claude</b>, así que solo entiendo órdenes sencillas. Para conversar de verdad, conéctame en{' '}
+          Ahora estoy <b>sin conexión a una IA</b>, así que solo entiendo órdenes sencillas.{' '}
+          {host ? 'Para conversar de verdad, autoriza el uso de tu cuenta de Claude cuando te lo pida; más detalles en' : 'Para conversar de verdad, conecta una gratis (Gemini) o la que prefieras en'}{' '}
           <button type="button" className="chat-link" onClick={() => chat.getState().showSettings(true)}>
             ⚙ Ajustes
           </button>
@@ -72,14 +75,19 @@ function Welcome({ onPick }: { onPick: (t: string) => void }) {
   )
 }
 
-/** Antes de la primera conversación: qué se envía y a quién. Solo cuando de verdad sale algo del aparato. */
+/** Antes de la primera conversación: qué se envía y a quién (con el aviso propio de cada servicio). Solo cuando de verdad sale algo del aparato. */
 function Consent() {
+  const via = useChat((s) => s.via)
+  const provider = useChat((s) => s.provider)
+  const info = PROVIDERS[provider]
+  const claude = via === 'sample' || via === 'api'
   return (
     <div className="chat-consent" role="group" aria-label="Antes de empezar">
       <p>
-        <b>Antes de empezar:</b> para ayudarte, Claude lee el texto de los posits de este tablero. Se envía a Anthropic solo para preparar cada respuesta.
-        Puedes cambiarlo cuando quieras en ⚙ Ajustes.
+        <b>Antes de empezar:</b> para ayudarte, {claude ? 'Claude' : `la IA (${info.name})`} lee el texto de los posits de este tablero. Se envía a{' '}
+        {claude ? 'Anthropic' : provider === 'gemini' ? 'Google' : provider === 'groq' ? 'Groq' : 'ese servicio'} solo para preparar cada respuesta. Puedes cambiarlo cuando quieras en ⚙ Ajustes.
       </p>
+      {!claude && <p className="chat-consent-warn">{info.privacy}</p>}
       <div className="chat-btn-row">
         <button type="button" className="chat-btn chat-btn-accent" onClick={() => chat.getState().patchSettings({ consented: true, shareNotes: true })}>
           Entendido, seguir
@@ -102,7 +110,11 @@ function ChatPanelBody() {
   const messages = useChat((s) => s.messages)
   const status = useChat((s) => s.status)
   const via = useChat((s) => s.via)
-  const model = useChat((s) => s.settings.model)
+  const provider = useChat((s) => s.provider)
+  const settings = useChat((s) => s.settings)
+  const model = settings.model
+  const name = assistantName(via, provider)
+  const nameLabel = name === 'Asistente' ? 'el asistente' : name
   const consented = useChat((s) => s.settings.consented)
   const coarse = useCoarsePointer()
 
@@ -206,15 +218,28 @@ function ChatPanelBody() {
     else setListening(l)
   }
 
+  const info = PROVIDERS[provider]
+  const shownModel = modelFor(settings, provider)
+  const shownModelName = info.models.find((m) => m.id === shownModel)?.name ?? shownModel
   const statusText =
-    status === 'waiting' ? 'pensando…' : status === 'streaming' ? 'escribiendo…' : via === 'sample' ? 'con tu cuenta de Claude' : via === 'api' ? `con tu clave · ${modelById(model).name}` : 'modo sencillo (sin Claude)'
+    status === 'waiting'
+      ? 'pensando…'
+      : status === 'streaming'
+        ? 'escribiendo…'
+        : via === 'sample'
+          ? 'con tu cuenta de Claude'
+          : via === 'api'
+            ? `con tu clave · ${modelById(model).name}`
+            : via === 'gemini' || via === 'openai'
+              ? `${info.free ? 'gratis · ' : ''}${shownModelName}`
+              : 'modo sencillo (sin IA)'
 
   return (
-    <section className="chat hand-box" role="dialog" aria-label="Conversación con Claude" data-chat data-via={via}>
+    <section className="chat hand-box" role="dialog" aria-label={`Conversación con ${nameLabel}`} data-chat data-via={via}>
       <header className="chat-head">
         <ClawdPeek />
         <div className="chat-title">
-          <p className="chat-name">Claude</p>
+          <p className="chat-name">{name}</p>
           <p className="chat-status" role="status" data-busy={busy || undefined}>
             <i className="chat-dot" aria-hidden="true" />
             {statusText}
@@ -246,7 +271,7 @@ function ChatPanelBody() {
               stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
             }}
           >
-            {messages.length === 0 ? <Welcome onPick={(t) => submit(t)} /> : messages.map((m) => <Message key={m.id} m={m} />)}
+            {messages.length === 0 ? <Welcome onPick={(t) => submit(t)} name={name} /> : messages.map((m) => <Message key={m.id} m={m} name={name} />)}
           </div>
 
           {needsConsent && <Consent />}
@@ -271,7 +296,7 @@ function ChatPanelBody() {
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={onKeyDown}
               placeholder={listening ? 'Te escucho…' : 'Escríbeme aquí…'}
-              aria-label="Tu mensaje para Claude"
+              aria-label={`Tu mensaje para ${nameLabel}`}
               enterKeyHint="send"
               autoComplete="off"
               autoCapitalize="sentences"

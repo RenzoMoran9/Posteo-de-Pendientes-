@@ -2,23 +2,23 @@ import { GREETINGS, PHRASES, fill, type PhraseKey } from './phrases'
 import type { Mood } from './mascotStore'
 import { tagsOf, type NoteFacts, type Tag } from './analyze'
 
-/** Algo que la mascota ofrece hacer con un toque (pintar el posit de rojo, pegarle un ícono, pedirle ayuda a Claude). */
+/** Algo que la mascota ofrece hacer con un toque (pintar el posit de rojo, pegarle un ícono, pedirle ayuda al asistente). */
 export interface Suggest {
   kind: 'paint' | 'icon' | 'ask'
   label: string
   hex?: string
   icon?: string
-  /** Lo que se le pregunta a Claude (kind `ask`). */
+  /** Lo que se le pregunta al asistente (kind `ask`). */
   prompt?: string
 }
 
-/** Lo que la mascota le propone preguntarle a Claude. */
+/** Lo que la mascota le propone preguntarle al asistente. */
 export const ASK = {
   stress: 'Estoy con mucha carga de trabajo. Ayúdame a decidir qué hacer primero hoy y en qué orden.',
   order: 'Ordena por prioridad los pendientes del posit que tengo seleccionado y explícame el criterio.',
 } as const
 
-/** Desde cuántos pendientes abiertos en un posit vale la pena ofrecer ordenarlos con Claude. */
+/** Desde cuántos pendientes abiertos en un posit vale la pena ofrecer ordenarlos con el asistente. */
 export const MANY_OPEN = 6
 
 export interface Comment {
@@ -209,17 +209,17 @@ export class Brain {
 
   private suggestFor(tag: string, input: TypedInput): Suggest | undefined {
     if (this.rng() > 0.6) return undefined
-    // cansancio o un posit larguísimo: lo que más ayuda es hablar con Claude
-    if (tag === 'stress') return { kind: 'ask', label: 'Pedirle ayuda a Claude', prompt: ASK.stress }
-    if (tag === 'long') return { kind: 'ask', label: 'Ordenar con Claude', prompt: ASK.order }
+    // cansancio o un posit larguísimo: lo que más ayuda es hablar con el asistente
+    if (tag === 'stress') return { kind: 'ask', label: 'Pedirle ayuda al asistente', prompt: ASK.stress }
+    if (tag === 'long') return { kind: 'ask', label: 'Ordenar con el asistente', prompt: ASK.order }
     if (tag === 'urgent' && input.color.toLowerCase() !== RED_PAPER.toLowerCase() && this.rng() < 0.5) {
       return { kind: 'paint', label: 'Pintar de rojo', hex: RED_PAPER }
     }
     const opt = ICON_FOR[tag as Tag]
     const has = (icon: string) => input.stickerIcons.includes(icon) || input.facts.icons.includes(icon)
     if (opt && !has(opt.icon) && !(opt.also ?? []).some(has)) return { kind: 'icon', label: opt.label, icon: opt.icon }
-    // con la lista ya larga, ordenarla con Claude es lo más útil
-    if (input.facts.tasks - input.facts.done >= MANY_OPEN) return { kind: 'ask', label: 'Ordenar con Claude', prompt: ASK.order }
+    // con la lista ya larga, ordenarla con el asistente es lo más útil
+    if (input.facts.tasks - input.facts.done >= MANY_OPEN) return { kind: 'ask', label: 'Ordenar con el asistente', prompt: ASK.order }
     return undefined
   }
 

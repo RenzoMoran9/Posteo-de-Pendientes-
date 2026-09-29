@@ -229,7 +229,9 @@ async function desktop(browser, url) {
   const wb = await wn.locator('.paper').boundingBox()
   await page.mouse.click(centerOf(wb).x, centerOf(wb).y) // selecciona
   const before = (await taskInfo(page))[1].d
-  const handle = await wn.locator('[data-resize="both"]').boundingBox()
+  // El borde derecho cambia el ancho del papel: los renglones se acomodan de nuevo y el trazo los sigue
+  await page.waitForTimeout(800) // deja que termine de acomodarse el posit al seleccionarlo
+  const handle = await wn.locator('[data-resize="x"]').boundingBox()
   const underHandle = await page.evaluate(({ x, y }) => {
     const el = document.elementFromPoint(x, y)
     if (!el) return 'nada'
@@ -240,7 +242,7 @@ async function desktop(browser, url) {
   const w0 = await wn.evaluate((el) => Math.round(el.getBoundingClientRect().width))
   await page.mouse.move(centerOf(handle).x, centerOf(handle).y)
   await page.mouse.down()
-  await page.mouse.move(centerOf(handle).x + 110, centerOf(handle).y + 10, { steps: 8 })
+  await page.mouse.move(centerOf(handle).x + 110, centerOf(handle).y, { steps: 8 })
   await page.mouse.up()
   await page.waitForTimeout(500)
   const after = (await taskInfo(page))[1].d

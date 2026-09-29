@@ -74,6 +74,47 @@ export function rotatedSquare(x: number, y: number, size: number, tilt: number):
   return { x: cx - side / 2, y: cy - side / 2, w: side, h: side }
 }
 
+/**
+ * Por cuánto hay que multiplicar una caja de `w` × `h` para que su esquina de abajo a la derecha quede lo más cerca
+ * posible del punto al que se arrastró (`dx`, `dy` más allá de la esquina): es la proyección del arrastre sobre la
+ * diagonal de la caja. Así la esquina agranda o achica todo en diagonal, siempre con la misma forma.
+ */
+export function diagonalScale(w: number, h: number, dx: number, dy: number): number {
+  const d2 = w * w + h * h
+  return d2 > 0 ? 1 + (dx * w + dy * h) / d2 : 1
+}
+
+export interface ScaleLimits {
+  /** Escala mínima y máxima, sea cual sea el ancho. */
+  min: number
+  max: number
+  /** Ancho que se ve (ya escalado) por debajo / por encima del cual no se deja llegar. */
+  minVisibleW: number
+  maxVisibleW: number
+}
+
+/** Escalas permitidas de un posit cuyo papel mide `w` de ancho sin escalar. */
+export function scaleRange(w: number, lim: ScaleLimits): { min: number; max: number } {
+  const base = Math.max(1, w)
+  return { min: Math.max(lim.min, lim.minVisibleW / base), max: Math.min(lim.max, lim.maxVisibleW / base) }
+}
+
+/**
+ * Cuánto se corre un ícono pegado cuando el posit cambia de medidas (`before` → `after`, sin escalar): se queda a la
+ * misma distancia del borde más cercano a su centro (el izquierdo o el derecho, el de arriba o el de abajo). Así uno
+ * pegado en la esquina de abajo a la derecha sigue en esa esquina, y uno de arriba a la izquierda no se mueve.
+ */
+export function anchoredShift(
+  center: { x: number; y: number },
+  before: { w: number; h: number },
+  after: { w: number; h: number },
+): { dx: number; dy: number } {
+  return {
+    dx: center.x > before.w / 2 ? after.w - before.w : 0,
+    dy: center.y > before.h / 2 ? after.h - before.h : 0,
+  }
+}
+
 /** Cambia el zoom dejando fijo el punto (px, py) de la pantalla. */
 export function zoomAround(view: View, px: number, py: number, nextZ: number): View {
   const z = clamp(nextZ, MIN_ZOOM, MAX_ZOOM)
@@ -148,3 +189,37 @@ export function fitView(bounds: Rect, size: { w: number; h: number }, insets: In
     y: insets.top + availH / 2 - cy * z,
   }
 }
+
+/**
+ * Vista que deja `rect` (en el tablero) entero dentro del área libre de la pantalla (`size` menos lo que ocupan las
+ * barras, `insets`, y `pad` de aire). Si ya se ve entero, devuelve la vista tal cual. Si cabe a este zoom, solo lo
+ * desplaza lo justo; si no cabe, aleja el zoom (sin pasar de `minZ`; nunca lo acerca) dejando quieta la esquina de arriba
+ * a la izquierda, y después lo desplaza. Cuando aun así no cabe, gana el borde de arriba a la izquierda.
+ */
+export function revealView(view: View, rect: Rect, size: { w: number; h: number }, insets: Insets, pad = 8, minZ = view.z): View {
+  const availW = size.w - insets.left - insets.right - pad * 2
+  const availH = size.h - insets.top - insets.bottom - pad * 2
+  let base = view
+  if (rect.w * view.z > availW || rect.h * view.z > availH) {
+    const fit = Math.min(view.z, availW / Math.max(1, rect.w), availH / Math.max(1, rect.h))
+    const z = clamp(fit, Math.min(minZ, view.z), view.z)
+    if (z < view.z) base = zoomAround(view, rect.x * view.z + view.x, rect.y * view.z + view.y, z)
+  }
+  const { x, y, z } = base
+  const left = insets.left + pad
+  const right = size.w - insets.right - pad
+  const top = insets.top + pad
+  const bottom = size.h - insets.bottom - pad
+  const x1 = rect.x * z + x
+  const x2 = (rect.x + rect.w) * z + x
+  const y1 = rect.y * z + y
+  const y2 = (rect.y + rect.h) * z + y
+  let dx = 0
+  let dy = 0
+  if (x2 > right) dx = right - x2
+  if (x1 + dx < left) dx = left - x1
+  if (y2 > bottom) dy = bottom - y2
+  if (y1 + dy < top) dy = top - y1
+  return { x: x + dx, y: y + dy, z }
+}
+

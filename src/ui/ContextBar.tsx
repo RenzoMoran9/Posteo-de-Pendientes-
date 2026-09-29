@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { SyntheticEvent } from 'react'
 import { Check, Copy, List, ListChecks, Minus, Plus, RotateCcw, RotateCw, Smile, Trash, Type } from 'lucide-react'
-import { rotateSticker } from '../board/actions'
+import { revealNote, rotateSticker } from '../board/actions'
 import { endEditing } from '../board/editors'
 import { toggleBullets, toggleTasks } from '../board/listCommands'
 import { useEditorOf, useListFlags } from '../hooks/useActiveEditor'
-import { STICKER_LIMITS, store, useStore } from '../store/store'
+import { scaleRange } from '../lib/geometry'
+import { NOTE_SCALE, STICKER_LIMITS, noteScale, store, useStore } from '../store/store'
 import { FormatPanel } from './FormatPanel'
 
 /** No robar el foco al editor: así el teclado del celular no se cierra al tocar estos botones. */
@@ -21,9 +22,21 @@ function resizeSticker(id: string, factor: number): void {
   s.patchSticker(id, { size, x: st.x - grow / 2, y: st.y - grow / 2 })
 }
 
+/** Agranda o achica un posit entero (papel, letra e íconos pegados): la misma escala que da la esquina, pero con un toque. */
+function scaleNote(id: string, factor: number): void {
+  const s = store.getState()
+  const n = s.notes[id]
+  if (!n) return
+  const range = scaleRange(n.w, NOTE_SCALE)
+  const k = Math.min(range.max, Math.max(range.min, noteScale(n) * factor))
+  if (Math.abs(k - noteScale(n)) < 1e-6) return
+  s.resizeNote(id, { scale: k })
+  if (factor > 1) revealNote(id) // más grande, puede quedar bajo las barras
+}
+
 /**
  * Acciones de lo seleccionado (encima del estuche).
- * Posit: Duplicar · Letra · Borrar. Escribiendo: «Listo» + viñetas + pendientes + ícono + letra/estilo + borrar.
+ * Posit: Duplicar · más pequeño · más grande · Letra · Borrar. Escribiendo: «Listo» + viñetas + pendientes + ícono + letra/estilo + borrar.
  * Ícono pegado: Duplicar · más pequeño · más grande · girar a la izquierda · girar a la derecha · Borrar.
  */
 export function ContextBar() {
@@ -84,7 +97,7 @@ export function ContextBar() {
         onMouseDown={keepFocus}
         onPointerDown={keepFocus}
       >
-        <button type="button" className="ctx-btn" onClick={() => store.getState().duplicateSticker(stickerId)}>
+        <button type="button" className="ctx-btn" aria-label="Duplicar ícono" onClick={() => store.getState().duplicateSticker(stickerId)}>
           <Copy aria-hidden="true" />
           <span className="ctx-label">Duplicar</span>
         </button>
@@ -100,7 +113,7 @@ export function ContextBar() {
         <button type="button" className="ctx-btn" aria-label="Girar a la derecha" title="Girar a la derecha ( ] )" onClick={() => rotateSticker(stickerId, 1)}>
           <RotateCw aria-hidden="true" />
         </button>
-        <button type="button" className="ctx-btn is-danger" onClick={() => store.getState().deleteSticker(stickerId)}>
+        <button type="button" className="ctx-btn is-danger" aria-label="Borrar ícono" onClick={() => store.getState().deleteSticker(stickerId)}>
           <Trash aria-hidden="true" />
           <span className="ctx-label">Borrar</span>
         </button>
@@ -112,7 +125,7 @@ export function ContextBar() {
 
   return (
     <div
-      className={`ctx hand-box${editing ? ' is-editing' : ''}`}
+      className={`ctx hand-box${editing ? ' is-editing' : ' is-note'}`}
       role="toolbar"
       aria-label={editing ? 'Escribiendo en el posit' : 'Acciones del posit'}
       onMouseDown={keepFocus}
@@ -175,12 +188,18 @@ export function ContextBar() {
         </>
       ) : (
         <>
-          <button type="button" className="ctx-btn" onClick={() => store.getState().duplicateNote(selectedId)}>
+          <button type="button" className="ctx-btn" aria-label="Duplicar posit" onClick={() => store.getState().duplicateNote(selectedId)}>
             <Copy aria-hidden="true" />
             <span className="ctx-label">Duplicar</span>
           </button>
+          <button type="button" className="ctx-btn" aria-label="Posit más pequeño" title="Achicar el posit (todo: papel, letra e íconos)" onClick={() => scaleNote(selectedId, 1 / 1.15)}>
+            <Minus aria-hidden="true" />
+          </button>
+          <button type="button" className="ctx-btn" aria-label="Posit más grande" title="Agrandar el posit (todo: papel, letra e íconos)" onClick={() => scaleNote(selectedId, 1.15)}>
+            <Plus aria-hidden="true" />
+          </button>
           {formatBtn}
-          <button type="button" className="ctx-btn is-danger" onClick={() => store.getState().deleteNote(selectedId)}>
+          <button type="button" className="ctx-btn is-danger" aria-label="Borrar posit" onClick={() => store.getState().deleteNote(selectedId)}>
             <Trash aria-hidden="true" />
             <span className="ctx-label">Borrar</span>
           </button>

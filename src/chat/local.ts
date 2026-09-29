@@ -6,7 +6,7 @@ import type { Snapshot } from './context'
 import { isDone, itemText, listsOf, noteTitle, taskCount } from './docOps'
 
 /**
- * La respuesta «sencilla», sin conexión a Claude: unas cuantas órdenes que se entienden por sus palabras (resumen,
+ * La respuesta «sencilla», sin conexión a una IA: unas cuantas órdenes que se entienden por sus palabras (resumen,
  * qué hacer primero, ordenar por urgencia, numerar). No es inteligencia artificial: sirve para no quedarse sin nada
  * cuando no hay cuenta ni clave, y usa las mismas acciones (y el mismo «Aplicar») que las propuestas de Claude.
  */
@@ -57,7 +57,7 @@ const byUrgency = (tasks: OpenTask[]): OpenTask[] => tasks.map((t, i) => ({ t, i
 
 const has = (folded: string, re: RegExp): boolean => re.test(folded)
 
-const HELP = 'Ahora no estoy conectado a Claude, así que solo entiendo órdenes sencillas: «¿qué tengo pendiente?», «¿qué hago primero?», «ordena por urgencia» y «numera». Para conversar de verdad, conecta tu cuenta o tu clave en ⚙ Ajustes.'
+const HELP = 'Ahora no estoy conectado a una IA, así que solo entiendo órdenes sencillas: «¿qué tengo pendiente?», «¿qué hago primero?», «ordena por urgencia» y «numera». Para conversar de verdad, conecta una IA en ⚙ Ajustes.'
 
 /** El posit sobre el que se pide algo: el elegido (si tiene pendientes) o el que tiene más pendientes abiertos. */
 function targetNote(snap: Snapshot, state: BoardState, selectedId: string | null | undefined): { alias: string; doc: JSONContent | null } | null {
@@ -77,7 +77,7 @@ export function localReply(user: string, snap: Snapshot, state: BoardState, sele
   const none = (text: string): LocalReply => ({ text, actions: [] })
 
   if (has(q, /^\s*(hola|holi|buenas|buenos dias|buenas tardes|buenas noches|hey|ey)\b/)) {
-    return none('¡Hola! Soy la mascota de Claude. Ahora estoy sin conexión a Claude, pero puedo resumirte tus pendientes, decirte qué hacer primero, ordenarlos por urgencia o numerarlos.')
+    return none('¡Hola! Soy la mascota de Claude. Ahora estoy sin conexión a una IA, pero puedo resumirte tus pendientes, decirte qué hacer primero, ordenarlos por urgencia o numerarlos.')
   }
   if (has(q, /\b(gracias|genial|perfecto|excelente|buenisimo)\b/)) return none('¡De nada! Aquí sigo por si necesitas ordenar algo más.')
   if (!Object.keys(snap.notes).length) {
@@ -97,7 +97,7 @@ export function localReply(user: string, snap: Snapshot, state: BoardState, sele
       .map((x) => x.i)
     if (order.every((n, k) => n === k + 1)) return none('Esa lista ya está en un buen orden: lo urgente arriba y lo hecho al final.')
     return {
-      text: `Te propongo ordenar «${noteTitle(target.doc)}»: primero lo que suena urgente o para hoy, luego lo que tiene fecha cercana, y al final lo ya hecho. Si quieres otro criterio, conecta Claude en ⚙ Ajustes y lo hablamos.`,
+      text: `Te propongo ordenar «${noteTitle(target.doc)}»: primero lo que suena urgente o para hoy, luego lo que tiene fecha cercana, y al final lo ya hecho. Si quieres otro criterio, conecta una IA en ⚙ Ajustes y lo hablamos.`,
       actions: [{ do: 'reorder', note: target.alias, list: list.no, order }],
     }
   }

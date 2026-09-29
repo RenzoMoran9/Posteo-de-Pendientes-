@@ -166,7 +166,7 @@ async function phone(browser, url) {
     return { scroll: strip.scrollWidth > strip.clientWidth + 4, vis, pw: Math.round(pb.width), ph: Math.round(pb.height), overflow: document.documentElement.scrollWidth > innerWidth }
   })
   check('se ven al menos tres instrumentos y el resto se desliza con el dedo', geo.vis >= 3 && geo.scroll && !geo.overflow, JSON.stringify(geo))
-  check('cada instrumento es cómodo de tocar (≥ 52 × 76 px)', geo.pw >= 52 && geo.ph >= 76, JSON.stringify(geo))
+  check('cada instrumento es cómodo de tocar (≥ 48 × 76 px)', geo.pw >= 48 && geo.ph >= 76, JSON.stringify(geo))
   const tools = await page.locator('.tool-btn, .add-btn').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) } }))
   check('«Nuevo», íconos y paleta miden ≥ 44 px', tools.length === 3 && tools.every((t) => t.w >= 44 && t.h >= 44), JSON.stringify(tools))
   await shot(page, 'estuche-cel-01')

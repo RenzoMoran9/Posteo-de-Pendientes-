@@ -1,6 +1,19 @@
-import { GRID, MAX_ZOOM, MIN_ZOOM, angleTo, clamp, magnet, normalizeAngle, snapTilt, type View } from '../lib/geometry'
-import { NOTE_LIMITS, STICKER_LIMITS, store } from '../store/store'
-import { addNoteAtClient, persistViewSoon } from './actions'
+import {
+  GRID,
+  MAX_ZOOM,
+  MIN_ZOOM,
+  angleTo,
+  anchoredShift,
+  clamp,
+  diagonalScale,
+  magnet,
+  normalizeAngle,
+  scaleRange,
+  snapTilt,
+  type View,
+} from '../lib/geometry'
+import { NOTE_LIMITS, NOTE_SCALE, STICKER_LIMITS, noteScale, stickersOfNote, store } from '../store/store'
+import { addNoteAtClient, cancelReveal, persistViewSoon, revealNote } from './actions'
 import { beginEditing, endEditing } from './editors'
 import { view } from './view'
 
@@ -40,6 +53,8 @@ type StickerPress = {
   id: string
   el: HTMLElement
   noteId: string | null
+  /** Escala del posit al que está pegado (1 si está suelto): x/y del ícono están en el marco del posit, ya escalado. */
+  k: number
   tilt: number
   x0: number
   y0: number
@@ -64,6 +79,8 @@ type Press =
       /** Cuánto crece el lado por cada píxel arrastrado en horizontal / vertical (depende de cuánto esté girado el ícono). */
       kx: number
       ky: number
+      /** Escala del posit al que está pegado (1 si está suelto). */
+      k: number
       s: number
       x: number
       y: number
@@ -94,10 +111,17 @@ type Press =
       id: string
       el: HTMLElement
       axis: Axis
+      /** Escala con la que empieza el posit y sus medidas sin escalar: ancho, alto mínimo y alto real (el texto puede alargarlo). */
+      k0: number
       w0: number
       h0: number
+      realH0: number
+      /** Lo que va quedando (escala, ancho y alto mínimo). */
+      k: number
       w: number
       h: number
+      /** Íconos pegados al posit: dónde estaban y dónde van, para que sigan al borde más cercano cuando cambian el ancho o el alto. */
+      pinned: Array<{ id: string; el: HTMLElement | null; x0: number; y0: number; cx: number; cy: number; x: number; y: number }>
     }
 
 /** Cuánto se puede mover el dedo (o el ratón) y seguir contando como "toque". */
@@ -109,7 +133,8 @@ const DOUBLE_MS = 340
  *  - un dedo / ratón sobre el fondo → desplaza el tablero
  *  - dos dedos → zoom y desplazamiento a la vez
  *  - sobre un posit → tocar selecciona, tocar de nuevo escribe, arrastrar lo mueve
- *  - sobre un tirador → cambia el tamaño
+ *  - sobre el tirador de la esquina → agranda o achica TODO el posit en diagonal (papel, letra e íconos pegados);
+ *    sobre los de los bordes (solo con ratón) → cambia solo el ancho o el alto y el texto se acomoda
  *  - sobre un ícono pegado → tocar lo selecciona, arrastrar lo mueve (se pega al posit sobre el que se suelte);
  *    su tirador de la esquina cambia el tamaño y el de arriba lo gira
  *  - rueda: desplaza; Ctrl/⌘ + rueda (o pellizco en el trackpad): zoom
@@ -272,6 +297,12 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
     capture(e.pointerId)
   }
 
+  /** Escala del posit al que está pegado un ícono (1 si está suelto en la hoja). */
+  function parentScale(noteId: string | null): number {
+    const parent = noteId ? store.getState().notes[noteId] : undefined
+    return parent ? noteScale(parent) : 1
+  }
+
   function beginStickerPress(e: PointerEvent, el: HTMLElement, id: string) {
     const st = store.getState().stickers[id]
     if (!st) return
@@ -285,6 +316,7 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
       id,
       el,
       noteId: st.noteId,
+      k: parentScale(st.noteId),
       tilt: st.tilt,
       x0: st.x,
       y0: st.y,
@@ -312,6 +344,7 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
       y0: st.y,
       kx: Math.cos(r) - Math.sin(r),
       ky: Math.sin(r) + Math.cos(r),
+      k: parentScale(st.noteId),
       s: st.size,
       x: st.x,
       y: st.y,
@@ -347,8 +380,10 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
   }
 
   function beginResize(e: PointerEvent, el: HTMLElement, id: string, axis: Axis) {
-    const r = el.getBoundingClientRect()
-    const z = view.get().z
+    const s = store.getState()
+    const n = s.notes[id]
+    if (!n) return
+    const k0 = noteScale(n)
     press = {
       kind: 'resize',
       pid: e.pointerId,
@@ -357,10 +392,24 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
       id,
       el,
       axis,
-      w0: r.width / z,
-      h0: r.height / z,
-      w: r.width / z,
-      h: r.height / z,
+      k0,
+      w0: n.w,
+      h0: n.h,
+      // el alto real (el de verdad, sin escalar): con mucho texto el posit es más alto que el `h` guardado
+      realH0: el.offsetHeight,
+      k: k0,
+      w: n.w,
+      h: n.h,
+      pinned: stickersOfNote(s, id).map((st) => ({
+        id: st.id,
+        el: el.querySelector<HTMLElement>(`[data-sticker-id="${st.id}"]`),
+        x0: st.x,
+        y0: st.y,
+        cx: st.x + st.size / 2,
+        cy: st.y + st.size / 2,
+        x: st.x,
+        y: st.y,
+      })),
     }
     setGesturing(true)
     capture(e.pointerId)
@@ -370,6 +419,9 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
 
   function onPointerDown(e: PointerEvent) {
     if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1) return
+    // si el tablero se estaba desplazando solo (por ejemplo, para mostrar un posit), lo que hagas tú manda
+    view.stop()
+    cancelReveal()
 
     const sticker = stickerHit(e.target)
     const hit = sticker ? null : hitInfo(e.target)
@@ -453,7 +505,7 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
       }
       pr.x = nx
       pr.y = ny
-      pr.el.style.transform = `translate(${nx}px, ${ny}px)`
+      pr.el.style.translate = `${nx}px ${ny}px`
       return
     }
 
@@ -465,9 +517,9 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
         pr.el.setAttribute('data-dragging', '')
         setGesturing(true)
       }
-      // libre (sin imán): el ícono va exactamente donde lo lleva el dedo
-      pr.x = pr.x0 + dx / z
-      pr.y = pr.y0 + dy / z
+      // libre (sin imán): el ícono va exactamente donde lo lleva el dedo (pegado a un posit escalado, sus medidas son las del posit)
+      pr.x = pr.x0 + dx / (z * pr.k)
+      pr.y = pr.y0 + dy / (z * pr.k)
       pr.el.style.translate = `${pr.x}px ${pr.y}px`
       return
     }
@@ -475,7 +527,7 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
     if (pr.kind === 'sticker-resize') {
       // El ícono es cuadrado y crece desde su centro: el lado aumenta lo que el dedo se aleja del centro
       // a lo largo de la diagonal del tirador (que sigue el giro del ícono).
-      const s = clamp(pr.s0 + (dx * pr.kx + dy * pr.ky) / z, STICKER_LIMITS.min, STICKER_LIMITS.max)
+      const s = clamp(pr.s0 + (dx * pr.kx + dy * pr.ky) / (z * pr.k), STICKER_LIMITS.min, STICKER_LIMITS.max)
       const grow = s - pr.s0
       pr.s = s
       pr.x = pr.x0 - grow / 2
@@ -503,19 +555,40 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
       return
     }
 
-    // resize
-    let w = pr.w0 + (pr.axis !== 'y' ? dx / z : 0)
-    let h = pr.h0 + (pr.axis !== 'x' ? dy / z : 0)
-    w = clamp(w, NOTE_LIMITS.minW, NOTE_LIMITS.maxW)
-    h = clamp(h, NOTE_LIMITS.minH, NOTE_LIMITS.maxH)
-    if (snap) {
-      w = magnet(w, GRID, tol)
-      h = magnet(h, GRID, tol)
+    // cambio de tamaño del posit
+    if (pr.axis === 'both') {
+      // La esquina agranda o achica TODO el posit (papel, letra e íconos pegados) en diagonal, sin deformarlo: la escala
+      // sale de cuánto se arrastró la esquina a lo largo de la diagonal de lo que se ve.
+      const seen = { w: pr.w0 * pr.k0, h: pr.realH0 * pr.k0 }
+      const range = scaleRange(pr.w0, NOTE_SCALE)
+      let k = clamp(pr.k0 * diagonalScale(seen.w, seen.h, dx / z, dy / z), range.min, range.max)
+      if (snap) k = clamp(magnet(pr.w0 * k, GRID, tol) / pr.w0, range.min, range.max)
+      pr.k = k
+      pr.el.style.scale = String(k)
+      pr.el.style.setProperty('--nk', String(k))
+      return
     }
-    pr.w = w
-    pr.h = h
-    pr.el.style.width = `${w}px`
-    pr.el.style.setProperty('--note-min-h', `${h}px`)
+
+    // Los bordes (solo con ratón) cambian el ancho o el alto del papel, con la escala que ya tiene: el texto se acomoda
+    // y los íconos pegados se quedan a la misma distancia del borde que les queda más cerca.
+    if (pr.axis === 'x') {
+      let w = clamp(pr.w0 + dx / (z * pr.k0), NOTE_LIMITS.minW, NOTE_LIMITS.maxW)
+      if (snap) w = clamp(magnet(w * pr.k0, GRID, tol) / pr.k0, NOTE_LIMITS.minW, NOTE_LIMITS.maxW)
+      pr.w = w
+      pr.el.style.width = `${w}px`
+    } else {
+      let h = clamp(pr.realH0 + dy / (z * pr.k0), NOTE_LIMITS.minH, NOTE_LIMITS.maxH)
+      if (snap) h = clamp(magnet(h * pr.k0, GRID, tol) / pr.k0, NOTE_LIMITS.minH, NOTE_LIMITS.maxH)
+      pr.h = h
+      pr.el.style.setProperty('--note-min-h', `${h}px`)
+    }
+    const after = { w: pr.w, h: pr.el.offsetHeight }
+    for (const p of pr.pinned) {
+      const shift = anchoredShift({ x: p.cx, y: p.cy }, { w: pr.w0, h: pr.realH0 }, after)
+      p.x = p.x0 + shift.dx
+      p.y = p.y0 + shift.dy
+      if (p.el) p.el.style.translate = `${p.x}px ${p.y}px`
+    }
   }
 
   function onPointerUp(e: PointerEvent) {
@@ -580,6 +653,7 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
         return
       }
       selectNote(pr.id)
+      revealNote(pr.id)
       return
     }
 
@@ -614,7 +688,11 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
     }
 
     setGesturing(false)
-    store.getState().patchNote(pr.id, { w: pr.w, h: pr.h })
+    const changed = pr.k !== pr.k0 || pr.w !== pr.w0 || pr.h !== pr.h0
+    if (!changed) return
+    const patch = pr.axis === 'both' ? { scale: pr.k } : pr.axis === 'x' ? { w: pr.w } : { h: pr.h }
+    const stickers = Object.fromEntries(pr.pinned.filter((p) => p.x !== p.x0 || p.y !== p.y0).map((p) => [p.id, { x: p.x, y: p.y }]))
+    store.getState().resizeNote(pr.id, patch, stickers)
   }
 
   /**
@@ -626,11 +704,18 @@ export function attachGestures(board: HTMLElement, world: HTMLElement): () => vo
     const box = pr.el.getBoundingClientRect()
     const targetId = noteAt(box.left + box.width / 2, box.top + box.height / 2, pr.el)
     const parent = pr.noteId ? s.notes[pr.noteId] : undefined
-    const wx = (parent ? parent.x : 0) + pr.x
-    const wy = (parent ? parent.y : 0) + pr.y
+    // a coordenadas del tablero (el ícono pegado vive en el marco del posit, que puede estar escalado)
+    const wx = (parent ? parent.x : 0) + pr.x * pr.k
+    const wy = (parent ? parent.y : 0) + pr.y * pr.k
+    const size = s.stickers[pr.id]?.size ?? 0
     const target = targetId ? s.notes[targetId] : undefined
-    if (target) s.placeSticker(pr.id, { noteId: target.id, x: wx - target.x, y: wy - target.y })
-    else s.placeSticker(pr.id, { noteId: null, x: wx, y: wy })
+    if (target) {
+      // y de ahí al marco del posit destino; el ícono conserva el tamaño que se le ve
+      const tk = noteScale(target)
+      s.placeSticker(pr.id, { noteId: target.id, x: (wx - target.x) / tk, y: (wy - target.y) / tk, size: (size * pr.k) / tk })
+    } else {
+      s.placeSticker(pr.id, { noteId: null, x: wx, y: wy, size: size * pr.k })
+    }
   }
 
   function onWheel(e: WheelEvent) {

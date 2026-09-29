@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { GRID } from '../lib/geometry'
-import { NOTE_DEFAULTS, STICKER_LIMITS, createDefaultState, createPositsStore, stickersOfNote, taskDoc, textDoc } from './store'
+import { NOTE_DEFAULTS, NOTE_SCALE, STICKER_LIMITS, createDefaultState, createPositsStore, noteScale, stickersOfNote, taskDoc, textDoc } from './store'
 
 let store: ReturnType<typeof createPositsStore>
 const S = () => store.getState()
@@ -422,3 +422,98 @@ describe('íconos pegados', () => {
     expect(S().iconPanel).toBeNull()
   })
 })
+
+describe('tamaño del posit: escala, ancho y alto', () => {
+  it('un posit nace sin escala anotada (1 = tamaño natural)', () => {
+    const n = notes()[0]
+    expect(n.scale).toBeUndefined()
+    expect(noteScale(n)).toBe(1)
+  })
+
+  it('resizeNote guarda la escala sin tocar el ancho ni el alto sin escalar', () => {
+    const n = notes()[0]
+    S().resizeNote(n.id, { scale: 0.75 })
+    expect(S().notes[n.id]).toMatchObject({ scale: 0.75, w: n.w, h: n.h })
+    expect(noteScale(S().notes[n.id])).toBe(0.75)
+  })
+
+  it('volver a la escala 1 la borra del posit (no se anota lo de siempre)', () => {
+    const n = notes()[0]
+    S().resizeNote(n.id, { scale: 1.4 })
+    S().resizeNote(n.id, { scale: 1 })
+    expect('scale' in S().notes[n.id]).toBe(false)
+  })
+
+  it('la escala siempre queda dentro de los topes', () => {
+    const n = notes()[0]
+    S().resizeNote(n.id, { scale: 99 })
+    expect(S().notes[n.id].scale).toBe(NOTE_SCALE.max)
+    S().resizeNote(n.id, { scale: 0.001 })
+    expect(S().notes[n.id].scale).toBe(NOTE_SCALE.min)
+  })
+
+  it('cambiar solo el ancho o solo el alto conserva la escala', () => {
+    const n = notes()[0]
+    S().resizeNote(n.id, { scale: 0.6 })
+    S().resizeNote(n.id, { w: 300 })
+    S().resizeNote(n.id, { h: 400 })
+    expect(S().notes[n.id]).toMatchObject({ scale: 0.6, w: 300, h: 400 })
+  })
+
+  it('resizeNote también acomoda los íconos pegados a ese posit, y solo a ese', () => {
+    const a = notes()[0]
+    const bId = S().addNote({ x: 900, y: 0, exact: true })
+    const b = S().notes[bId]
+    const own = S().addSticker({ icon: 'fuego', noteId: a.id, x: 200, y: -18, select: false })
+    const other = S().addSticker({ icon: 'sol', noteId: b.id, x: 100, y: 10, select: false })
+    S().resizeNote(a.id, { w: 200 }, { [own]: { x: 140, y: -18 }, [other]: { x: 1, y: 1 } })
+    expect(S().stickers[own]).toMatchObject({ x: 140, y: -18 })
+    // un ícono de otro posit (o suelto) no se toca aunque venga en la lista
+    expect(S().stickers[other]).toMatchObject({ x: 100, y: 10 })
+  })
+
+  it('resizeNote de un posit que no existe no hace nada', () => {
+    const before = S().notes
+    S().resizeNote('no-existe', { scale: 2 })
+    expect(S().notes).toBe(before)
+  })
+
+  it('duplicar un posit escalado conserva la escala (y sus íconos van con ella)', () => {
+    const n = notes()[0]
+    S().resizeNote(n.id, { scale: 0.5 })
+    const copy = S().duplicateNote(n.id) as string
+    expect(S().notes[copy].scale).toBe(0.5)
+    expect(stickersOfNote(S(), copy)).toHaveLength(stickersOfNote(S(), n.id).length)
+  })
+
+  it('borrar un posit escalado y deshacer lo devuelve con su escala', () => {
+    const n = notes()[0]
+    S().resizeNote(n.id, { scale: 1.8 })
+    S().deleteNote(n.id)
+    S().toast?.onAction?.()
+    expect(S().notes[n.id].scale).toBe(1.8)
+  })
+
+  it('un posit nuevo esquiva el espacio que de verdad ocupa otro escalado', () => {
+    const first = notes()[0]
+    S().resizeNote(first.id, { scale: 2 })
+    const id = S().addNote({ x: first.x, y: first.y })
+    const n = S().notes[id]
+    const bigW = first.w * 2
+    const bigH = first.h * 2
+    const overlap = n.x < first.x + bigW && n.x + n.w > first.x && n.y < first.y + bigH && n.y + n.h > first.y
+    expect(overlap).toBe(false)
+  })
+
+  it('placeSticker puede cambiar el tamaño del ícono (dentro de los límites) al pasar de un posit a otro', () => {
+    const note = notes()[0]
+    const id = S().addSticker({ icon: 'rayo', x: 900, y: 900, size: 60 })
+    S().placeSticker(id, { noteId: note.id, x: 5, y: 6, size: 120 })
+    expect(S().stickers[id]).toMatchObject({ noteId: note.id, x: 5, y: 6, size: 120 })
+    S().placeSticker(id, { noteId: null, x: 5, y: 6, size: 99999 })
+    expect(S().stickers[id].size).toBe(STICKER_LIMITS.max)
+    S().placeSticker(id, { noteId: null, x: 7, y: 8 })
+    expect(S().stickers[id].size).toBe(STICKER_LIMITS.max)
+  })
+})
+

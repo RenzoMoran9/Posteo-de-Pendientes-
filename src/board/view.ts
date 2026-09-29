@@ -1,4 +1,4 @@
-import { GRID, MAX_ZOOM, MIN_ZOOM, clamp, zoomAround, type Insets, type Rect, type View } from '../lib/geometry'
+import { GRID, MAX_ZOOM, MIN_ZOOM, clamp, revealView, zoomAround, type Insets, type Rect, type View } from '../lib/geometry'
 
 type Listener = () => void
 
@@ -95,28 +95,15 @@ export class ViewController {
     return { x: (sx - this.v.x) / this.v.z, y: (sy - this.v.y) / this.v.z }
   }
 
-  /** Desplaza lo justo para que `rect` (en coordenadas del tablero) quede dentro del área libre. */
-  ensureVisible(rect: Rect, animate = true): void {
+  /**
+   * Desplaza lo justo para que `rect` (en coordenadas del tablero) quede dentro del área libre.
+   * `insets` cambia por esta vez lo que se cuenta como ocupado (por ejemplo, para esquivar también a la mascota) y
+   * `minZoom` deja alejar el zoom, como mucho hasta ese valor, cuando el rectángulo no cabe entero (por defecto no cambia el zoom).
+   */
+  ensureVisible(rect: Rect, animate = true, insets?: Partial<Insets>, minZoom?: number): void {
     const r = this.rect()
-    const c = this.chrome
-    const pad = 8
-    const left = c.left + pad
-    const right = r.width - c.right - pad
-    const top = c.top + pad
-    const bottom = r.height - c.bottom - pad
-    const { x, y, z } = this.v
-    const x1 = rect.x * z + x
-    const x2 = (rect.x + rect.w) * z + x
-    const y1 = rect.y * z + y
-    const y2 = (rect.y + rect.h) * z + y
-    let dx = 0
-    let dy = 0
-    if (x2 > right) dx = right - x2
-    if (x1 + dx < left) dx = left - x1
-    if (y2 > bottom) dy = bottom - y2
-    if (y1 + dy < top) dy = top - y1
-    if (!dx && !dy) return
-    const target = { x: x + dx, y: y + dy, z }
+    const target = revealView(this.v, rect, { w: r.width, h: r.height }, { ...this.chrome, ...insets }, 8, minZoom)
+    if (target.x === this.v.x && target.y === this.v.y && target.z === this.v.z) return
     if (animate) this.animateTo(target, 320)
     else this.set(target)
   }
@@ -141,6 +128,11 @@ export class ViewController {
       this.anim = t < 1 ? requestAnimationFrame(step) : 0
     }
     this.anim = requestAnimationFrame(step)
+  }
+
+  /** Detiene el desplazamiento animado que esté en marcha (lo que haga la persona con el dedo o el ratón manda). */
+  stop(): void {
+    this.stopAnimation()
   }
 
   private stopAnimation(): void {

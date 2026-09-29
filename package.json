@@ -10,7 +10,7 @@
     "preview": "vite preview --host --port 4173",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "e2e": "node e2e/stage1.cjs && node e2e/stage2.cjs && node e2e/stage3.cjs && node e2e/stage3-fonts.cjs && node e2e/stage3-rotate.cjs && node e2e/mascot.cjs && node e2e/chat.cjs && node e2e/pens.cjs",
+    "e2e": "node e2e/stage1.cjs && node e2e/stage2.cjs && node e2e/stage3.cjs && node e2e/stage3-fonts.cjs && node e2e/stage3-rotate.cjs && node e2e/resize.cjs && node e2e/mascot.cjs && node e2e/chat.cjs && node e2e/pens.cjs",
     "icons": "node scripts/icons/build.mjs && node scripts/icons/mascot.mjs",
     "icons:sheet": "node scripts/icons/sheet.mjs"
   },

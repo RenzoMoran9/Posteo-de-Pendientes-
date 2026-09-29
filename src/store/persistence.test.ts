@@ -86,6 +86,39 @@ describe('la pluma en la mano al guardar y cargar', () => {
   })
 })
 
+describe('escala del posit al guardar y cargar', () => {
+  const raw = () => JSON.parse(JSON.stringify(pickPersisted(createDefaultState(1)))) as { notes: Record<string, Record<string, unknown>> }
+
+  it('la escala elegida sobrevive, y un posit sin escala no la inventa', () => {
+    const state = createDefaultState(1)
+    const id = Object.keys(state.notes)[0]
+    const withScale = parsePersisted(JSON.stringify(pickPersisted({ ...state, notes: { [id]: { ...state.notes[id], scale: 0.62 } } })))
+    expect(withScale?.notes[id].scale).toBe(0.62)
+    const without = parsePersisted(JSON.stringify(pickPersisted(state)))
+    expect(without?.notes[id] && 'scale' in without.notes[id]).toBe(false)
+  })
+
+  it('lo guardado antes de que existiera la escala se sigue abriendo igual', () => {
+    const data = raw()
+    const id = Object.keys(data.notes)[0]
+    delete data.notes[id].scale
+    expect(parsePersisted(JSON.stringify(data))?.notes[id].scale).toBeUndefined()
+  })
+
+  it('repara escalas absurdas o inválidas: dentro de los topes o la de siempre', () => {
+    const data = raw()
+    const id = Object.keys(data.notes)[0]
+    data.notes[id].scale = 50
+    expect(parsePersisted(JSON.stringify(data))?.notes[id].scale).toBe(4)
+    data.notes[id].scale = 0.01
+    expect(parsePersisted(JSON.stringify(data))?.notes[id].scale).toBe(0.3)
+    data.notes[id].scale = 'grande'
+    expect(parsePersisted(JSON.stringify(data))?.notes[id].scale).toBeUndefined()
+    data.notes[id].scale = 1
+    expect(parsePersisted(JSON.stringify(data))?.notes[id].scale).toBeUndefined()
+  })
+})
+
 describe('la mascota al guardar y cargar', () => {
   const raw = () => JSON.parse(JSON.stringify(pickPersisted(createDefaultState(1))))
 

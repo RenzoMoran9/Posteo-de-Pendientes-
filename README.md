@@ -13,7 +13,7 @@ se ven igual en ambos. La visión completa del proyecto está en [`CLAUDE.md`](.
 | 3 | Íconos dibujados a mano (en el tablero, en el posit y dentro del texto) y letras manuscritas (negrita, cursiva, subrayado) | ✅ hecha |
 | 4 | Varios tableros | ⏳ |
 | 5 | Sincronización en la nube + inicio de sesión (Supabase) | ⏳ |
-| Extra | La mascota de Claude (muñeco de bloques en 3D), **conversar con Claude** sobre tus pendientes, y la barra de instrumentos de escritura | ✅ hecha |
+| Extra | La mascota de Claude (muñeco de bloques en 3D), **conversar con un asistente** (Claude, o Gemini/Groq gratis) sobre tus pendientes, y la barra de instrumentos de escritura | ✅ hecha |
 
 ### Qué hace la Etapa 1
 
@@ -23,7 +23,13 @@ se ven igual en ambos. La visión completa del proyecto está en [`CLAUDE.md`](.
   y sombra suave. Se escribe directo sobre él, con letra manuscrita.
 - **Crear** con «＋ Nuevo» (o `N`, o doble clic en el fondo); el posit nace en un hueco libre, sin tapar a otros.
 - **Mover** arrastrando desde la cinta (o desde cualquier parte si no estás escribiendo);
-  **redimensionar** con el tirador de la esquina; **borrar** con «Borrar» (o `Supr`) y **Deshacer** al instante.
+  **cambiar el tamaño** con el tirador de la esquina (mira abajo); **borrar** con «Borrar» (o `Supr`) y **Deshacer** al instante.
+- **Tamaño del posit**: el tirador de la **esquina** agranda o achica el posit **entero, en diagonal y sin deformarlo**:
+  el papel, la letra y los íconos pegados crecen juntos (un ícono en la esquina de arriba a la derecha sigue en ella).
+  En la PC, los tiradores de **los bordes** (una asita a la derecha y otra abajo) cambian solo el ancho o el alto y el
+  texto se acomoda; los íconos pegados siguen al borde que les queda más cerca. Con el dedo, la barra del posit trae
+  «−» y «+» para achicar o agrandar de un toque. Al tocar un posit que quedaba abajo, el tablero lo trae a la vista
+  entero (con su tirador) por encima de las barras y de la mascota, alejando un poco el zoom si hace falta.
 - **Color**: paleta chiquita de 24 colores que se abre desde el botón de la derecha de la barra (muestra el color en
   uso). La tinta se vuelve clara sola sobre papeles oscuros.
 - **Un toque selecciona; otro toque escribe** (así el teclado del celular no salta al mover o mirar).
@@ -94,7 +100,7 @@ La barra de abajo tiene el aire de un estuche de instrumentos (chapa oscura, esq
 Un muñeco de bloques como el impreso en 3D de la mascota de Claude (cuerpo, dos bracitos y cuatro patas), hecho **de
 verdad en 3D con CSS**: caras con perspectiva, luz arriba a la izquierda (cada cara con su tono) y sombra en el suelo.
 Vive sobre el estuche y hace de asistente. Los comentarios de su nube salen **de reglas locales** (no usan IA ni envían
-nada); la conversación de verdad con Claude es la de la sección siguiente.
+nada); la conversación de verdad con un asistente es la de la sección siguiente.
 
 - **Te ve**: gira hacia el cursor (o el dedo) y corre los ojos sobre la cara; si dejas el ratón quieto, mira el cursor
   de escritura, el posit seleccionado o, con la conversación abierta, el campo donde escribes; cada tanto mira por ahí
@@ -108,16 +114,16 @@ nada); la conversación de verdad con Claude es la de la sección siguiente.
   orden de compra…), insumos médicos, llamadas, correos, reuniones, preguntas y cansancio.
 - **Ofrece ayuda con un botón** («Pintar de rojo» un posit urgente, «Poner sirena», «Poner teléfono»…), que no te
   saca del posit ni cierra el teclado. **Celebra** al marcar pendientes y saluda según la hora al abrir la app.
-- **Tócala para conversar** con Claude. Se puede **arrastrar** a otro sitio (con el dedo o el ratón) y ahí se queda.
+- **Tócala para conversar** con el asistente. Se puede **arrastrar** a otro sitio (con el dedo o el ratón) y ahí se queda.
   Los ajustes («Que calle», «Ocultar», «A su sitio») están dentro de la conversación (⚙).
 - En la PC ancha (≥ 1230 px) está en la esquina, al lado de la barra; en pantallas más angostas, apoyada sobre la barra
   (sube cuando aparece la barra de acciones); en el celular se hace más chica con el teclado abierto.
 
-### Extra: hablar con Claude
+### Extra: hablar con el asistente (Claude, Gemini gratis u otra IA)
 
 Toca a la mascota (o pulsa `C`) y se abre la conversación: un panel de chapa con una hoja de cuaderno donde escribes
-(o **dictas por voz**) y Claude contesta. Está pensado para **tus pendientes y nada más**: si le hablas de otra cosa, lo
-dice con amabilidad y te devuelve a tu tablero.
+(o **dictas por voz**) y el asistente contesta. Está pensado para **tus pendientes y nada más**: si le hablas de otra
+cosa, lo dice con amabilidad y te devuelve a tu tablero.
 
 - **Ve tu tablero**: con cada mensaje recibe una «foto» del tablero activo (los posits como n1, n2…, con sus listas y
   renglones numerados, casillas marcadas, la fecha de hoy). Así puede decirte qué hacer primero, resumirte, partir una
@@ -128,34 +134,53 @@ dice con amabilidad y te devuelve a tu tablero.
   previa de cómo quedaría y los botones **Aplicar** / **No, gracias**. Nada cambia hasta que aplicas, y después se puede
   **Deshacer** (se restaura el posit tal cual estaba; si lo tocaste después, no te pisa tu trabajo). Cada propuesta se
   revisa contra el tablero antes de aplicarse (posits y renglones que existan, sin cambios entre medias).
-- **Tres formas de conectarse** (el encabezado dice cuál se usa):
-  1. **Con tu cuenta de Claude, sin clave**: dentro del enlace de prueba de claude.ai. Autorizas una vez y lo que se
-     gasta sale de tu plan.
-  2. **Con tu propia clave de Anthropic** (en la página pública): la pegas en ⚙ Ajustes y la conversación va directo de
-     tu navegador a `api.anthropic.com` (el SDK oficial se carga solo al primer mensaje). Crea una clave solo para esto
-     y ponle un límite de gasto mensual. Se guarda solo en ese aparato (puedes elegir que se olvide al cerrar la
-     pestaña) y se borra con «Olvidar clave». Ojo: si publicas la app en GitHub Pages, todas tus páginas de
-     `tu-usuario.github.io` comparten el mismo almacenamiento del navegador; si tienes otras páginas ahí, no
-     marques «Recordar la clave».
-  3. **Sin conexión a Claude (modo sencillo)**: unas cuantas órdenes por reglas («¿qué tengo pendiente?», «¿qué hago
-     primero?», «ordena», «numera») con el mismo Aplicar / Deshacer. No es IA y lo dice en cada respuesta.
-- **Modelo a elegir** (⚙ Ajustes): Claude Opus 5.5 (la más inteligente, la de siempre), Sonnet 5.5 (más económica) o
-  Haiku 4.5 (rápida y barata). Con clave propia, un mensaje con el tablero cuesta del orden de 2 centavos de dólar con
-  Opus, 1 con Sonnet y 0,3 con Haiku (tarifas de API; depende del tamaño de tu tablero).
-- **Privacidad**: antes de la primera consulta se explica qué se envía (el texto de los posits del tablero activo,
-  nada de los otros tableros) y se puede decir «No leer mis posits» (entonces Claude solo sabe cuántos hay). En modo
-  sencillo no sale nada del aparato. La conversación se guarda en el aparato (se borra en ⚙ Ajustes).
+- **¿Quién contesta?** (⚙ Ajustes → «¿Quién contesta?»; el encabezado dice cuál se usa). Se puede elegir entre:
+  1. **Gemini de Google — gratis** *(la recomendada)*. Sacas una clave gratis con tu cuenta de Google en
+     `aistudio.google.com/apikey` (los ajustes traen los tres pasos y el enlace), la pegas, tocas «Guardar clave» y
+     «Probar conexión». Contesta muy bien en español. El plan gratuito tiene topes de mensajes por minuto y por día:
+     si llegas, la app lo dice y basta esperar un rato (o cambiar de IA). Modelo por defecto: `gemini-3.8-flash`
+     (también `gemini-3.5-flash-lite` y `gemini-2.5-flash`, o el nombre que escribas).
+  2. **Groq — gratis**: modelos abiertos (Llama 3.3 70B, GPT-OSS) muy veloces; clave gratis en `console.groq.com/keys`.
+     El plan gratuito tiene límites bajos de texto por minuto: con un tablero muy grande puede decir que hay «demasiado
+     texto» (apaga «Dejar que la IA lea mis posits» o borra la conversación).
+  3. **Otra IA (avanzado)**: cualquier servicio «compatible con OpenAI» (por ejemplo OpenRouter, con
+     `https://openrouter.ai/api/v1` y el modelo `openrouter/free`): pones su dirección, su clave y el nombre del modelo.
+  4. **Claude (de pago)**: dentro del **enlace de prueba de claude.ai** usa tu cuenta sin clave (autorizas una vez y se
+     gasta de tu plan); en la página pública, con tu clave de Anthropic (crea una solo para esto y ponle un límite de
+     gasto mensual). Se elige entre Opus 5.5 (la más inteligente), Sonnet 5.5 y Haiku 4.5; un mensaje con el tablero
+     cuesta del orden de 2, 1 y 0,3 centavos de dólar respectivamente (tarifas de API).
+  5. **Sin conexión a una IA (modo sencillo)**, cuando no hay ninguna clave: unas cuantas órdenes por reglas
+     («¿qué tengo pendiente?», «¿qué hago primero?», «ordena», «numera») con el mismo Aplicar / Deshacer. No es IA y lo
+     dice en cada respuesta.
+- **Las claves** se guardan solo en ese aparato, una por servicio, y cada una viaja únicamente a su servicio (Google,
+  Groq…, directo desde tu navegador: no pasan por ningún otro sitio). «Olvidar clave» la borra; «Recordar las claves en
+  este aparato» apagado las deja solo mientras la pestaña esté abierta. Una clave **gratuita** no puede generar cobros
+  (a lo sumo, agotar su cupo). Ojo: si publicas la app en GitHub Pages, todas tus páginas de `tu-usuario.github.io`
+  comparten el mismo almacenamiento del navegador; si tienes otras páginas ahí, no recuerdes las claves.
+- **Dentro del enlace de prueba de claude.ai solo vale la cuenta de Claude**: el visor no deja salir a otros sitios, así
+  que Gemini, Groq y las demás se usan desde la **página pública** de la app (GitHub Pages).
+- **Privacidad**: antes de la primera consulta se explica qué se envía y a quién (el texto de los posits del tablero
+  activo, nada de los otros tableros) y se puede decir «No leer mis posits» (entonces la IA solo sabe cuántos hay).
+  **Con la clave gratuita de Google, Google puede usar lo que se envía para mejorar sus productos y personas suyas pueden
+  revisarlo** (así son sus condiciones del plan gratuito, y piden no enviar datos sensibles, confidenciales ni
+  personales): si en tus posits hay datos de pacientes o información reservada, apaga «Dejar que la IA lea mis posits»
+  o usa otra opción. Groq dice que no usa lo que envías para entrenar ni lo guarda de forma permanente. En modo sencillo
+  no sale nada del aparato. La conversación se guarda en el aparato (se borra en ⚙ Ajustes).
 - **Voz**: el micrófono dicta lo que dices y lo envía al terminar; «Leer las respuestas en voz alta» las lee con la
   voz del aparato. Depende del navegador (en Chrome, Edge y Safari suele funcionar el dictado; si no, el botón no sale).
 - Mientras piensa, la mascota se queda pensando; mientras escribe la respuesta, asiente y mueve los bracitos; se puede
-  **Detener** en cualquier momento. Los errores se explican en español (clave mala, sin saldo, límite de uso, sin internet).
+  **Detener** en cualquier momento. Los errores se explican en español (clave mala, modelo que no existe, país sin
+  servicio gratuito, límite de uso, sin saldo, demasiado texto, sin internet).
 
-> **Qué se probó y qué no.** Las pruebas de la conversación usan la API de Anthropic **simulada** (respuestas en
-> streaming con el mismo formato que las reales, interceptadas en el navegador) y una cuenta de Claude simulada: en el
-> entorno de desarrollo no hay salida a Anthropic, así que aún no se ha hablado con el Claude de verdad desde esta app.
-> La primera conversación real es la prueba que falta; si algo no sale como se espera, las respuestas de error dicen por qué.
+> **Qué se probó y qué no.** Las pruebas de la conversación usan los servicios **simulados** (respuestas en streaming con
+> el mismo formato que las reales, interceptadas en el navegador). Además, la conexión con Gemini se probó **contra la
+> red real** con una clave falsa: la petición llega a Google, el navegador la deja pasar (CORS) y el error real de Google
+> («clave no válida») se entiende y se explica en español. Lo que aún no se ha visto es una respuesta real con una clave
+> válida (ni de Gemini, ni de Groq, ni de Claude): sin clave propia no se puede desde el entorno de desarrollo. Groq y
+> «otra IA» además no se pudieron alcanzar desde ahí para comprobar su CORS. La primera conversación real es la prueba
+> que falta; si algo no sale como se espera, «Probar conexión» y los mensajes de error dicen por qué.
 
-Atajos de teclado (PC): `N` nuevo · `I` íconos · `C` conversar con Claude · `Enter` escribir · `Esc` salir · `Supr` borrar · `Ctrl+D` duplicar ·
+Atajos de teclado (PC): `N` nuevo · `I` íconos · `C` conversar con el asistente · `Enter` escribir · `Esc` salir · `Supr` borrar · `Ctrl+D` duplicar ·
 flechas mueven el posit o el ícono · `+` `-` `0` zoom (con un ícono seleccionado, su tamaño) · `[` `]` girar el ícono ·
 `F` ver todo · `Ctrl+Mayús+8` viñetas · `Ctrl+Mayús+9` pendientes · `Ctrl+B` `Ctrl+I` `Ctrl+U` estilo del texto.
 
@@ -170,7 +195,7 @@ npm run dev          # http://localhost:5173  (y la dirección de "Network" para
 npm run build        # compila a dist/
 npm run preview      # sirve dist/ en http://localhost:4173
 npm test             # pruebas unitarias (lógica de datos, geometría, guardado)
-npm run e2e          # pruebas en un navegador real (Etapas 1 a 3, giro de íconos, mascota, conversación y barra de instrumentos), tamaño PC y celular con toques reales (necesita `npm run build`)
+npm run e2e          # pruebas en un navegador real (Etapas 1 a 3, giro de íconos, tamaño de los posits, mascota, conversación y barra de instrumentos), tamaño PC y celular con toques reales (necesita `npm run build`)
 npm run icons        # vuelve a generar los íconos (src/icons/data.generated.ts) y los adornos de la mascota (src/mascot/art.generated.ts)
 npm run icons:sheet -- --cat urgente   # hoja de revisión de los íconos (PNG en scripts/icons/out/)
 ```
@@ -199,10 +224,19 @@ npm run icons:sheet -- --cat urgente   # hoja de revisión de los íconos (PNG e
   medidas están en unidades (`--u`) y todo escala con la caja de la mascota. La mirada, el parpadeo y los gestos se
   escriben directo en el DOM (variables CSS), sin pasar por React.
 - **La conversación** (`src/chat/`): `context.ts` arma la «foto» del tablero; `prompt.ts` trae las instrucciones para
-  Claude; `protocol.ts` y `actions.ts` leen con desconfianza las propuestas (`<acciones>` en JSON), las convierten en un
-  plan con descripción y las aplican/deshacen con `docOps.ts` (operaciones puras sobre el documento del posit);
-  `transports/` tiene las dos conexiones (`sample` para la cuenta de Claude del enlace de prueba, `api` para la clave
-  propia con `@anthropic-ai/sdk`); `local.ts` es el modo sencillo; `chatStore.ts` une todo.
+  la IA (con su nombre, para que ninguna se haga pasar por Claude); `protocol.ts` y `actions.ts` leen con desconfianza las
+  propuestas (`<acciones>` en JSON), las convierten en un plan con descripción y las aplican/deshacen con `docOps.ts`
+  (operaciones puras sobre el documento del posit); `providers.ts` es el catálogo de servicios (pasos para sacar la clave,
+  modelos, aviso de privacidad de cada uno); `transports/` tiene las conexiones: `sample` (cuenta de Claude del enlace de
+  prueba), `api` (clave de Anthropic con `@anthropic-ai/sdk`), `gemini` (API `streamGenerateContent` de Google, con `fetch`
+  y `alt=sse`) y `openai` (cualquier servicio compatible: Groq, OpenRouter…), más `sse.ts` (lector de eventos en streaming);
+  `local.ts` es el modo sencillo; `settings.ts` guarda las preferencias y una clave por servicio; `chatStore.ts` une todo.
+- **El tamaño de un posit** (`src/board/gestures.ts`, `NoteView.tsx`, `src/lib/geometry.ts`): cada posit tiene una
+  **escala** (`scale`, sin valor = 1) que se aplica con la propiedad CSS `scale` desde su esquina de arriba a la izquierda,
+  igual que el zoom del tablero; `w` y `h` siguen siendo las medidas del papel sin escalar, así el texto se acomoda igual a
+  cualquier escala. Los íconos pegados viven en las medidas del posit, por eso lo siguen sin más. La esquina calcula la
+  escala proyectando el arrastre sobre la diagonal del posit (`diagonalScale`); los bordes cambian `w` o `h` y reacomodan
+  los íconos al borde más cercano (`anchoredShift`); `revealView` decide cuánto mover (y alejar) el tablero para mostrarlo.
 - **Datos locales primero** (`src/store/`): Zustand + guardado automático en el dispositivo. Los identificadores son
   UUID y cada posit lleva `updatedAt`, pensando ya en la sincronización de la Etapa 5.
 - Las medidas de los posits están en **unidades del tablero** y las letras van incluidas en la app:
@@ -213,7 +247,7 @@ src/
   board/     tablero: vista (zoom/pan), gestos, posit, ícono pegado, editor
   icons/     catálogo, buscador y dibujo de los íconos (los datos vienen de scripts/icons)
   mascot/    la mascota: modelo de bloques en 3D (CSS), mirada y parpadeo, nube de comentarios, cerebro de reglas
-  chat/      conversación con Claude: foto del tablero, propuestas con Aplicar/Deshacer, conexiones, voz, panel
+  chat/      conversación con el asistente: foto del tablero, propuestas con Aplicar/Deshacer, servicios (Claude, Gemini, Groq…), voz, panel
   store/     datos: almacén, guardado automático
   ui/        barra superior, estuche de instrumentos (plumas), panel de íconos, letra y estilo, acciones, avisos
   lib/       geometría, paleta y contraste, letras, utilidades

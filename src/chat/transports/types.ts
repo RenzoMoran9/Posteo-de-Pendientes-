@@ -1,14 +1,14 @@
 import type { Turn } from '../prompt'
-import type { ModelId } from '../settings'
 
-export type TransportId = 'sample' | 'api' | 'local'
+export type TransportId = 'sample' | 'api' | 'gemini' | 'openai' | 'local'
 
 export interface AskRequest {
   /** Instrucciones permanentes. */
   system: string
   /** La conversación: empieza y termina con un turno de la persona. */
   turns: Turn[]
-  model: ModelId
+  /** El modelo que se pide (cada conexión tiene los suyos: `claude-…`, `gemini-…`, `llama-…`). */
+  model: string
   signal: AbortSignal
   /** Se llama con TODO el texto escrito hasta ahora (no solo lo nuevo). */
   onText(text: string): void
@@ -21,6 +21,6 @@ export interface AskResponse {
 }
 
 export interface Transport {
-  id: 'sample' | 'api'
+  id: 'sample' | 'api' | 'gemini' | 'openai'
   ask(req: AskRequest): Promise<AskResponse>
 }

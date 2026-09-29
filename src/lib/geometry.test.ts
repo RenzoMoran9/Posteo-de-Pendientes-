@@ -4,12 +4,16 @@ import {
   MAX_ZOOM,
   MIN_ZOOM,
   angleTo,
+  anchoredShift,
   boundsOf,
   clamp,
+  diagonalScale,
   findFreeSpot,
   fitView,
   magnet,
   normalizeAngle,
+  revealView,
+  scaleRange,
   rotatedSquare,
   snapTilt,
   stepAngle,
@@ -169,5 +173,113 @@ describe('giro de íconos', () => {
     expect(r.y + r.h / 2).toBeCloseTo(45, 9)
     const q = rotatedSquare(10, 20, 50, 90)
     expect(q.w).toBeCloseTo(50, 9)
+  })
+})
+
+describe('tamaño de un posit con la esquina', () => {
+  it('diagonalScale: sin arrastrar no cambia, y a lo largo de la diagonal crece lo que se arrastró', () => {
+    expect(diagonalScale(300, 400, 0, 0)).toBe(1)
+    // la diagonal mide 500: 50 px a lo largo de ella (30 a la derecha y 40 abajo) → +10 %
+    expect(diagonalScale(300, 400, 30, 40)).toBeCloseTo(1.1, 12)
+    // y hacia adentro, lo mismo pero achicando
+    expect(diagonalScale(300, 400, -30, -40)).toBeCloseTo(0.9, 12)
+  })
+
+  it('diagonalScale: arrastrar de lado (perpendicular a la diagonal) no cambia nada', () => {
+    expect(diagonalScale(300, 400, 40, -30)).toBeCloseTo(1, 12)
+    expect(diagonalScale(300, 400, -40, 30)).toBeCloseTo(1, 12)
+  })
+
+  it('diagonalScale: un arrastre solo horizontal o solo vertical también cuenta (por su parte sobre la diagonal)', () => {
+    expect(diagonalScale(300, 400, -60, 0)).toBeCloseTo(1 - (60 * 300) / 250000, 12)
+    expect(diagonalScale(300, 400, 0, -60)).toBeCloseTo(1 - (60 * 400) / 250000, 12)
+  })
+
+  it('diagonalScale: una caja sin tamaño no se puede escalar (queda igual)', () => {
+    expect(diagonalScale(0, 0, 50, 50)).toBe(1)
+  })
+
+  it('scaleRange: ni más chico ni más grande que los anchos que se ven, ni fuera de los topes', () => {
+    const lim = { min: 0.3, max: 4, minVisibleW: 96, maxVisibleW: 1400 }
+    const a = scaleRange(264, lim)
+    expect(a.min).toBeCloseTo(96 / 264, 12)
+    expect(a.max).toBe(4)
+    const b = scaleRange(960, lim)
+    expect(b.min).toBe(0.3)
+    expect(b.max).toBeCloseTo(1400 / 960, 12)
+    // con el ancho de más abajo, el mínimo nunca deja el posit más angosto que 96
+    expect(264 * a.min).toBeCloseTo(96, 9)
+  })
+
+  it('anchoredShift: un ícono cerca del borde derecho o del de abajo se corre con él; el de arriba a la izquierda, no', () => {
+    const before = { w: 300, h: 200 }
+    const after = { w: 240, h: 150 }
+    expect(anchoredShift({ x: 280, y: 10 }, before, after)).toEqual({ dx: -60, dy: 0 })
+    expect(anchoredShift({ x: 20, y: 180 }, before, after)).toEqual({ dx: 0, dy: -50 })
+    expect(anchoredShift({ x: 280, y: 180 }, before, after)).toEqual({ dx: -60, dy: -50 })
+    expect(anchoredShift({ x: 20, y: 10 }, before, after)).toEqual({ dx: 0, dy: 0 })
+  })
+
+  it('anchoredShift: justo en el centro se queda con el borde de arriba a la izquierda (no salta)', () => {
+    expect(anchoredShift({ x: 150, y: 100 }, { w: 300, h: 200 }, { w: 400, h: 300 })).toEqual({ dx: 0, dy: 0 })
+  })
+
+  it('anchoredShift: al agrandar el posit, el ícono de la esquina de abajo a la derecha sigue en ella', () => {
+    const before = { w: 300, h: 200 }
+    const after = { w: 420, h: 260 }
+    const c = { x: 270, y: 170 }
+    const s = anchoredShift(c, before, after)
+    expect(before.w - c.x).toBe(after.w - (c.x + s.dx))
+    expect(before.h - c.y).toBe(after.h - (c.y + s.dy))
+  })
+})
+
+describe('traer un rectángulo a la vista', () => {
+  const size = { w: 390, h: 844 }
+  const ins = { top: 66, right: 24, bottom: 200, left: 24 }
+  const view = { x: 56, y: 156, z: 1 }
+
+  it('si ya se ve entero, deja la vista igual', () => {
+    expect(revealView(view, { x: 0, y: 0, w: 264, h: 300 }, size, ins)).toEqual(view)
+  })
+
+  it('si le falta poco, solo lo desplaza lo justo (sin cambiar el zoom)', () => {
+    // el posit de 494 de alto queda con su borde de abajo tapado por la barra: sube lo que le falta
+    const v = revealView(view, { x: 0, y: 0, w: 264, h: 494 + 32 }, size, ins)
+    expect(v.z).toBe(1)
+    expect(v.x).toBe(56)
+    expect(v.y + (494 + 32)).toBeLessThanOrEqual(844 - 200 - 8 + 1e-9)
+    expect(v.y).toBeGreaterThanOrEqual(66 + 8 - 1e-9)
+  })
+
+  it('un rectángulo a la izquierda o arriba de lo libre se trae hacia allá', () => {
+    const v = revealView({ x: -400, y: -300, z: 1 }, { x: 0, y: 0, w: 100, h: 100 }, size, ins)
+    expect(v.x).toBe(24 + 8)
+    expect(v.y).toBe(66 + 8)
+  })
+
+  it('si no cabe a este zoom, aleja el zoom (sin pasar del mínimo) y lo deja entero a la vista', () => {
+    const rect = { x: 0, y: 0, w: 264, h: 700 }
+    const v = revealView(view, rect, size, ins, 8, 0.55)
+    expect(v.z).toBeLessThan(1)
+    expect(v.z).toBeGreaterThanOrEqual(0.55)
+    expect(rect.h * v.z + v.y).toBeLessThanOrEqual(844 - 200 - 8 + 1e-9)
+    expect(v.y).toBeGreaterThanOrEqual(66 + 8 - 1e-9)
+  })
+
+  it('el zoom nunca se acerca, y sin permiso para alejar (minZ por defecto) solo desplaza', () => {
+    const v = revealView({ x: 0, y: 0, z: 0.5 }, { x: 0, y: 0, w: 50, h: 50 }, size, ins, 8, 0.55)
+    expect(v.z).toBe(0.5)
+    const tall = revealView(view, { x: 0, y: 0, w: 264, h: 900 }, size, ins)
+    expect(tall.z).toBe(1)
+    expect(tall.y).toBe(66 + 8) // gana el borde de arriba
+  })
+
+  it('al alejar el zoom, la esquina de arriba a la izquierda del rectángulo se queda donde estaba (si cabe)', () => {
+    const rect = { x: 0, y: 0, w: 200, h: 720 }
+    const v = revealView({ x: 100, y: 80, z: 1 }, rect, size, ins, 8, 0.55)
+    // con el zoom nuevo, la esquina sigue en la misma pantalla que antes (la vista solo se corrige si se sale)
+    expect(v.z).toBeLessThan(1)
+    expect(v.x).toBeCloseTo(100, 6)
   })
 })

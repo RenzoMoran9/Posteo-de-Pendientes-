@@ -19,6 +19,11 @@ export interface Note {
   w: number
   /** Alto mínimo: el posit crece solo si el texto no cabe. */
   h: number
+  /**
+   * Escala del posit entera (papel, letra e íconos pegados): la esquina lo agranda o lo achica en diagonal, sin deformarlo.
+   * Sin valor = 1 (tamaño natural). `w` y `h` siguen siendo las medidas sin escalar, así el texto se acomoda igual.
+   */
+  scale?: number
   /** Orden de apilamiento: el mayor queda encima. */
   z: number
   color: string

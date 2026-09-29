@@ -10,6 +10,8 @@ import type { Board, MascotMode, Note, PersistedState, SaveStatus, Sticker, View
 
 export const NOTE_DEFAULTS = { w: 240, h: 216 } as const
 export const NOTE_LIMITS = { minW: 144, minH: 120, maxW: 960, maxH: 1600 } as const
+/** Escala de un posit entero (la esquina lo agranda o achica): entre 0,3× y 4×, y nunca menos de 96 ni más de 1400 de ancho a la vista. */
+export const NOTE_SCALE = { min: 0.3, max: 4, minVisibleW: 96, maxVisibleW: 1400 } as const
 export const STICKER_DEFAULTS = { size: 56 } as const
 export const STICKER_LIMITS = { min: 24, max: 320 } as const
 
@@ -70,6 +72,11 @@ export interface AddStickerOptions {
 interface Actions {
   addNote(opts?: AddNoteOptions): string
   patchNote(id: string, patch: Partial<Pick<Note, 'x' | 'y' | 'w' | 'h' | 'color' | 'font'>>): void
+  /**
+   * Cambia el tamaño de un posit y, en el mismo movimiento, acomoda los íconos pegados a él (`stickers`: su nueva
+   * posición dentro del posit). Un solo cambio, así se guarda y se ve de una vez.
+   */
+  resizeNote(id: string, patch: Partial<Pick<Note, 'w' | 'h' | 'scale'>>, stickers?: Record<string, { x: number; y: number }>): void
   setDoc(id: string, doc: JSONContent): void
   deleteNote(id: string): void
   restoreNote(note: Note, stickers?: Sticker[]): void
@@ -81,7 +88,7 @@ interface Actions {
   addSticker(opts: AddStickerOptions): string
   patchSticker(id: string, patch: Partial<Pick<Sticker, 'x' | 'y' | 'size' | 'tilt'>>): void
   /** Al soltar un ícono: lo deja suelto o pegado a un posit, con sus coordenadas ya convertidas, y lo trae al frente. */
-  placeSticker(id: string, target: { noteId: string | null; x: number; y: number }): void
+  placeSticker(id: string, target: { noteId: string | null; x: number; y: number; size?: number }): void
   deleteSticker(id: string): void
   restoreStickers(list: Sticker[]): void
   duplicateSticker(id: string): string | null
@@ -183,6 +190,9 @@ export function createDefaultState(now = Date.now()): PersistedState {
 const notesOf = (s: PersistedState): Note[] =>
   Object.values(s.notes).filter((n) => n.boardId === s.activeBoardId)
 
+/** Escala de un posit (1 = tamaño natural). */
+export const noteScale = (n: { scale?: number }): number => n.scale ?? 1
+
 /** Íconos pegados a un posit. */
 export const stickersOfNote = (s: PersistedState, noteId: string): Sticker[] =>
   Object.values(s.stickers).filter((st) => st.noteId === noteId)
@@ -211,7 +221,7 @@ export function createPositsStore(initial: PersistedState) {
         y = Math.round(y / GRID) * GRID
       }
       if (!opts.exact) {
-        const taken = opts.avoid ?? notesOf(s).map((n) => ({ x: n.x, y: n.y, w: n.w, h: n.h }))
+        const taken = opts.avoid ?? notesOf(s).map((n) => ({ x: n.x, y: n.y, w: n.w * noteScale(n), h: n.h * noteScale(n) }))
         ;({ x, y } = findFreeSpot(taken, x, y, w, h))
       }
       const font = opts.font ?? s.settings.defaultFont
@@ -245,6 +255,26 @@ export function createPositsStore(initial: PersistedState) {
         const n = s.notes[id]
         if (!n) return s
         return { notes: { ...s.notes, [id]: { ...n, ...patch, updatedAt: Date.now() } } }
+      })
+    },
+
+    resizeNote(id, patch, stickers) {
+      set((s) => {
+        const n = s.notes[id]
+        if (!n) return s
+        const now = Date.now()
+        const { scale, ...rest } = { ...n, ...patch }
+        // la escala 1 es la de siempre: no se anota
+        const next: Note = { ...rest, ...(scale !== undefined && scale !== 1 ? { scale: clamp(scale, NOTE_SCALE.min, NOTE_SCALE.max) } : {}), updatedAt: now }
+        let moved = s.stickers
+        if (stickers) {
+          moved = { ...s.stickers }
+          for (const [sid, pos] of Object.entries(stickers)) {
+            const st = moved[sid]
+            if (st && st.noteId === id) moved[sid] = { ...st, x: pos.x, y: pos.y, updatedAt: now }
+          }
+        }
+        return { notes: { ...s.notes, [id]: next }, stickers: moved }
       })
     },
 
@@ -407,7 +437,8 @@ export function createPositsStore(initial: PersistedState) {
         const st = s.stickers[id]
         if (!st) return s
         const noteId = target.noteId && s.notes[target.noteId] ? target.noteId : null
-        const next: Sticker = { ...st, noteId, x: target.x, y: target.y, z: s.nextZ, updatedAt: Date.now() }
+        const size = target.size === undefined ? st.size : clamp(target.size, STICKER_LIMITS.min, STICKER_LIMITS.max)
+        const next: Sticker = { ...st, noteId, x: target.x, y: target.y, size, z: s.nextZ, updatedAt: Date.now() }
         return { stickers: { ...s.stickers, [id]: next }, nextZ: s.nextZ + 1 }
       })
     },

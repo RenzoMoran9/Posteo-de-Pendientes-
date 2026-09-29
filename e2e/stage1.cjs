@@ -100,19 +100,49 @@ async function desktop(browser, url) {
   let after = s.notes.find((n) => n.id === id)
   check('arrastrar desde la cinta mueve el posit', near(after.x - before.x, 200, 14) && near(after.y - before.y, 90, 14), `dx=${after.x - before.x} dy=${after.y - before.y}`)
 
-  // Redimensionar con el tirador de la esquina
+  // Redimensionar con el tirador de la esquina: agranda TODO el posit en diagonal (escala), sin deformarlo
+  const boxOf = () => page.locator(`[data-note-id="${id}"]`).boundingBox()
   const h = await page.locator(`[data-note-id="${id}"] [data-resize="both"]`).boundingBox()
   const hx = h.x + h.width / 2
   const hy = h.y + h.height / 2
   const w0 = after.w
   const h0 = after.h
+  const b0 = await boxOf()
   await page.mouse.move(hx, hy)
   await page.mouse.down()
   await page.mouse.move(hx + 96, hy + 72, { steps: 10 })
   await page.mouse.up()
   s = await getState(page)
   after = s.notes.find((n) => n.id === id)
-  check('el tirador de la esquina cambia el tamaño', near(after.w - w0, 96, 14) && near(after.h - h0, 72, 14), `dw=${after.w - w0} dh=${after.h - h0}`)
+  const b1 = await boxOf()
+  check(
+    'el tirador de la esquina agranda el posit entero, en diagonal y sin deformarlo',
+    b1.width > b0.width + 20 && b1.height > b0.height + 20 && near(b1.width / b1.height, b0.width / b0.height, 0.02),
+    `antes ${b0.width.toFixed(0)}×${b0.height.toFixed(0)} · después ${b1.width.toFixed(0)}×${b1.height.toFixed(0)}`,
+  )
+  check('…queda anotada la escala y el papel conserva su ancho y alto', after.scale > 1 && after.w === w0 && after.h === h0, `scale=${after.scale} w=${after.w} h=${after.h}`)
+
+  // Los tiradores de los bordes (solo con ratón) cambian nada más el ancho o el alto
+  const ex = await page.locator(`[data-note-id="${id}"] [data-resize="x"]`).boundingBox()
+  await page.mouse.move(ex.x + ex.width / 2, ex.y + ex.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(ex.x + ex.width / 2 + 72, ex.y + ex.height / 2, { steps: 8 })
+  await page.mouse.up()
+  const s2 = await getState(page)
+  const afterX = s2.notes.find((n) => n.id === id)
+  const b2 = await boxOf()
+  check('el borde derecho cambia solo el ancho (la escala no se toca)', afterX.w > after.w && afterX.h === after.h && afterX.scale === after.scale && b2.width > b1.width + 20, `w ${after.w}→${afterX.w}`)
+  const ey = await page.locator(`[data-note-id="${id}"] [data-resize="y"]`).boundingBox()
+  await page.mouse.move(ey.x + ey.width / 2, ey.y + ey.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(ey.x + ey.width / 2, ey.y + ey.height / 2 + 72, { steps: 8 })
+  await page.mouse.up()
+  const s3 = await getState(page)
+  const afterY = s3.notes.find((n) => n.id === id)
+  const b3 = await boxOf()
+  check('el borde de abajo cambia solo el alto (el ancho ni la escala se tocan)', afterY.h > afterX.h && afterY.w === afterX.w && afterY.scale === afterX.scale && b3.height > b2.height + 20, `h ${afterX.h}→${afterY.h}`)
+  s = s3
+  after = afterY
 
   // Un toque selecciona; otro toque escribe
   await page.mouse.click(60, 120) // fondo vacío
@@ -323,13 +353,14 @@ async function phone(browser, url) {
   let after = s.notes.find((n) => n.id === id)
   check('(celular) un dedo arrastra el posit desde la cinta', near(after.x - before.x, -30, 16) && near(after.y - before.y, 120, 16), `dx=${after.x - before.x} dy=${after.y - before.y}`)
 
-  // Redimensionar con el dedo
+  // Redimensionar con el dedo: la esquina agranda todo el posit en diagonal
+  const box0 = await page.locator(`[data-note-id="${id}"]`).boundingBox()
   const hnd = await page.locator(`[data-note-id="${id}"] [data-resize="both"]`).boundingBox()
-  const w0 = after.w
   await drag(centerOf(hnd), { x: centerOf(hnd).x + 40, y: centerOf(hnd).y + 60 })
   s = await getState(page)
   after = s.notes.find((n) => n.id === id)
-  check('(celular) el tirador de la esquina agranda con el dedo', after.w - w0 > 20, `dw=${after.w - w0}`)
+  const box1 = await page.locator(`[data-note-id="${id}"]`).boundingBox()
+  check('(celular) el tirador de la esquina agranda con el dedo (todo el posit, sin deformarlo)', after.scale > 1 && box1.width > box0.width + 10 && near(box1.width / box1.height, box0.width / box0.height, 0.02), `scale=${after.scale} ${box0.width.toFixed(0)}×${box0.height.toFixed(0)} → ${box1.width.toFixed(0)}×${box1.height.toFixed(0)}`)
 
   // Desplazar el tablero con un dedo sobre el fondo
   const v0 = s.view

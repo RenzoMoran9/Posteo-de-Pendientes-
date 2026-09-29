@@ -232,7 +232,7 @@ async function desktop(browser, url) {
   await shot(page, 'mascota-pc-04-icono-pegado')
   await page.getByRole('button', { name: 'Listo' }).click()
 
-  // 8b · Cansancio: ofrece pedirle ayuda a Claude, y el botón abre la conversación con la pregunta ya enviada
+  // 8b · Cansancio: ofrece pedirle ayuda al asistente, y el botón abre la conversación con la pregunta ya enviada
   await resetBrain(page)
   await page.getByRole('button', { name: 'Nuevo posit' }).click()
   await page.waitForSelector('.note.is-editing')
@@ -240,8 +240,8 @@ async function desktop(browser, url) {
   await waitBubble(page, 5000)
   await page.waitForTimeout(3300)
   s2 = await mstate(page)
-  check('ante el cansancio ofrece «Pedirle ayuda a Claude»', !!s2.bubble && s2.bubble.chips.includes('Pedirle ayuda a Claude'), JSON.stringify(s2))
-  await page.getByRole('button', { name: 'Pedirle ayuda a Claude' }).click()
+  check('ante el cansancio ofrece «Pedirle ayuda al asistente»', !!s2.bubble && s2.bubble.chips.includes('Pedirle ayuda al asistente'), JSON.stringify(s2))
+  await page.getByRole('button', { name: 'Pedirle ayuda al asistente' }).click()
   await page.waitForSelector('.chat')
   await page.waitForFunction(() => window.__posits.chat.getState().messages.length >= 2 && window.__posits.chat.getState().status === 'idle', null, { timeout: 5000 })
   const asked = await page.evaluate(() => window.__posits.chat.getState().messages.map((m) => ({ role: m.role, text: m.text })))
@@ -270,7 +270,7 @@ async function desktop(browser, url) {
   await page.mouse.move(600, 300)
   await page.locator('.mascot-figure').click()
   await page.waitForSelector('.chat')
-  check('al tocarla se abre la conversación con Claude (y no una nube)', (await chatOpen(page)) && (await bubble(page).count()) === 0 && (await page.locator('.chat').getAttribute('aria-label')) === 'Conversación con Claude')
+  check('al tocarla se abre la conversación con el asistente (y no una nube)', (await chatOpen(page)) && (await bubble(page).count()) === 0 && (await page.locator('.chat').getAttribute('aria-label')) === 'Conversación con el asistente')
   await page.waitForTimeout(500)
   const cbox = await page.locator('.chat').boundingBox()
   const mbox = await m.boundingBox()
@@ -424,12 +424,14 @@ async function phone(browser, url) {
   await page.waitForTimeout(300)
   await page.locator('.mascot-figure').scrollIntoViewIfNeeded()
   const f0 = centerOf(await page.locator('.mascot-figure').boundingBox())
+  const view0 = (await getState(page)).view
   await drag(f0, { x: 90, y: 470 })
   await page.waitForTimeout(400)
   const dragged = await m.boundingBox()
   const posT = await page.evaluate(() => window.__posits.store.getState().settings.mascotPos)
   check('con el dedo se arrastra a otro sitio y ahí se queda', !!posT && near(centerOf(dragged).x, 90, 8) && near(centerOf(dragged).y, 470, 8), JSON.stringify({ posT, dragged }))
-  check('…sin mover el tablero de atrás ni abrir una nube', (await bubble(page).count()) === 0 && (await getState(page)).view.z === 1)
+  const view1 = (await getState(page)).view
+  check('…sin mover el tablero de atrás ni abrir una nube', (await bubble(page).count()) === 0 && near(view1.x, view0.x, 0.5) && near(view1.y, view0.y, 0.5) && near(view1.z, view0.z, 1e-6), JSON.stringify({ view0, view1 }))
   check('…y soltarla no abre la conversación', !(await chatOpen(page)))
   await poke(page)
   await waitBubble(page, 1500)

@@ -1,6 +1,5 @@
 import type { ClientOptions } from '@anthropic-ai/sdk'
 import { ChatError, type ChatErrorCode } from '../errors'
-import type { ModelId } from '../settings'
 import type { AskRequest, AskResponse, Transport } from './types'
 
 /**
@@ -11,7 +10,7 @@ import type { AskRequest, AskResponse, Transport } from './types'
 export const MAX_TOKENS = 16_000
 
 /** Qué tanto piensa cada modelo: el más chico no admite ese ajuste. */
-export function effortFor(model: ModelId): 'medium' | undefined {
+export function effortFor(model: string): 'medium' | undefined {
   return model === 'claude-haiku-4-5' ? undefined : 'medium'
 }
 

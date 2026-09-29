@@ -2,6 +2,22 @@ import { describe, expect, it } from 'vitest'
 import { PAPER_COLORS } from '../lib/palette'
 import { buildSystem, buildTurns, withInstructionsTurn, type HistoryMsg } from './prompt'
 
+describe('buildSystem con otra IA', () => {
+  it('no se hace pasar por Claude: dice con qué funciona y conserva todas las reglas', () => {
+    const other = buildSystem({ kind: 'other', engine: 'Gemini, modelo gemini-3.8-flash' })
+    expect(other).not.toContain('Eres Claude')
+    expect(other).toContain('Eres el asistente (funcionas con Gemini, modelo gemini-3.8-flash')
+    expect(other).toContain('«Posteo de Pendientes»')
+    // el resto (alcance, formato, acciones) es exactamente el mismo
+    expect(other.slice(other.indexOf('TU TRABAJO'))).toBe(buildSystem().slice(buildSystem().indexOf('TU TRABAJO')))
+  })
+
+  it('sin indicar nada, es Claude (como antes)', () => {
+    expect(buildSystem()).toContain('Eres Claude, el asistente que vive dentro de «Posteo de Pendientes»')
+    expect(buildSystem({ kind: 'claude' })).toBe(buildSystem())
+  })
+})
+
 describe('buildSystem', () => {
   const sys = buildSystem()
 

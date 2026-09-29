@@ -114,17 +114,17 @@ describe('sugerencias', () => {
     expect(make(1, 0.05).brain.onTyped(typed({ lastLine: line, facts: factsOf(doc(line)) }))?.suggest).toMatchObject({ icon: 'telefono' })
   })
 
-  it('ante el cansancio o un posit larguísimo, ofrece pedirle ayuda a Claude', () => {
+  it('ante el cansancio o un posit larguísimo, ofrece pedirle ayuda al asistente', () => {
     const tired = make(1, 0.05).brain.onTyped(typed({ lastLine: 'Ya no puedo más, mucho trabajo', facts: factsOf(doc('Ya no puedo más, mucho trabajo')) }))
     expect(tired?.key).toBe('stress')
-    expect(tired?.suggest).toEqual({ kind: 'ask', label: 'Pedirle ayuda a Claude', prompt: ASK.stress })
+    expect(tired?.suggest).toEqual({ kind: 'ask', label: 'Pedirle ayuda al asistente', prompt: ASK.stress })
     const long = factsOf(doc('x'.repeat(400)))
     const c = make(1, 0.05).brain.onTyped(typed({ noteId: 'l', lastLine: 'x', facts: long }))
     expect(c?.key).toBe('long')
-    expect(c?.suggest).toEqual({ kind: 'ask', label: 'Ordenar con Claude', prompt: ASK.order })
+    expect(c?.suggest).toEqual({ kind: 'ask', label: 'Ordenar con el asistente', prompt: ASK.order })
   })
 
-  it('con una lista larga de pendientes abiertos y sin otra sugerencia, ofrece ordenarla con Claude', () => {
+  it('con una lista larga de pendientes abiertos y sin otra sugerencia, ofrece ordenarla con el asistente', () => {
     const items = Array.from({ length: MANY_OPEN }, (_, i) => `Pendiente número ${i + 1}`)
     const many = factsOf({ type: 'doc', content: [{ type: 'taskList', content: items.map((t) => ({ type: 'taskItem', attrs: { checked: false }, content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })) }] })
     const c = make(1, 0.05).brain.onTyped(typed({ lastLine: '¿Cuándo llega el pedido?', facts: many }))

@@ -242,7 +242,7 @@ export function Mascot() {
       <button
         type="button"
         className="mascot-figure"
-        aria-label="Claude, tu asistente (mascota). Tócala para conversar; arrástrala para moverla"
+        aria-label="Tu asistente (la mascota de Claude). Tócala para conversar; arrástrala para moverla"
         onMouseDown={(e) => e.preventDefault()}
         onPointerDown={down}
         onPointerMove={move}
