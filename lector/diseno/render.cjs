@@ -1,5 +1,5 @@
 // Convierte la maqueta en imágenes JPG.
-// Uso: node lector/diseno/render.cjs   (necesita el paquete «playwright»)
+// Uso (desde la raíz del repo del lector): node diseno/render.cjs   (necesita el paquete «playwright»)
 const path = require('path');
 const { chromium } = require('playwright');
 
